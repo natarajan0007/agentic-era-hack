@@ -148,15 +148,15 @@ resource "google_project_iam_member" "toolbox_sql_client" {
 
 resource "google_service_account" "cicd_runner_sa" {
   project      = var.gcp_project_id # Assumes prod project is the cicd project
-  account_id   = "${var.repository_name}-cicd-sa"
-  display_name = "CICD Runner Service Account"
+  account_id   = "ae-cicd-sa-prod"
+  display_name = "CICD Runner Service Account Prod"
   depends_on   = [google_project_service.apis]
 }
 
 resource "google_iam_workload_identity_pool" "wif_pool" {
   project                   = var.gcp_project_id
-  workload_identity_pool_id = "${var.repository_name}-pool"
-  display_name              = "GitHub Actions WIF Pool"
+  workload_identity_pool_id = "ae-pool-prod"
+  display_name              = "GitHub Actions WIF Pool Prod"
   depends_on                = [google_project_service.apis]
   lifecycle {
     prevent_destroy = true
@@ -167,8 +167,8 @@ resource "google_iam_workload_identity_pool" "wif_pool" {
 resource "google_iam_workload_identity_pool_provider" "wif_provider" {
   project                            = var.gcp_project_id
   workload_identity_pool_id          = google_iam_workload_identity_pool.wif_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "${var.repository_name}-provider"
-  display_name                       = "GitHub OIDC Provider"
+  workload_identity_pool_provider_id = "ae-provider-prod"
+  display_name                       = "GitHub OIDC Provider Prod"
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
