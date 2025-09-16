@@ -108,3 +108,10 @@ resource "google_cloud_run_service_iam_member" "public_access" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
+# Grant the toolbox service account access to the secret
+resource "google_project_iam_member" "toolbox_secret_accessor" {
+  project = var.gcp_project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
+}
