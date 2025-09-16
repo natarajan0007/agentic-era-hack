@@ -158,6 +158,10 @@ resource "google_iam_workload_identity_pool" "wif_pool" {
   workload_identity_pool_id = "${var.repository_name}-pool"
   display_name              = "GitHub Actions WIF Pool"
   depends_on                = [google_project_service.apis]
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
 }
 
 resource "google_iam_workload_identity_pool_provider" "wif_provider" {
