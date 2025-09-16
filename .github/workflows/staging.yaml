@@ -68,7 +68,7 @@ jobs:
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy adk-agent \
-            --image "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_I D}}/adk-agent-repo/adk-agent:${{ github.sha }}" \
+            --image "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/adk-agent-repo/adk-agent:${{ github.sha }}" \
             --region ${{ env.GCP_REGION }} \
             --service-account "adk-agent-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" \
             --project=${{ env.STAGING_PROJECT_ID }} \
