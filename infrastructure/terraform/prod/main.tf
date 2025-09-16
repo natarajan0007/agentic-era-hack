@@ -135,3 +135,10 @@ resource "google_project_iam_member" "toolbox_secret_accessor" {
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
 }
+
+# Grant the toolbox service account access to Cloud SQL
+resource "google_project_iam_member" "toolbox_sql_client" {
+  project = var.gcp_project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
+}
