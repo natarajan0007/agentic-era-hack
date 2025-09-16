@@ -73,7 +73,7 @@ resource "google_cloud_run_v2_service" "services" {
       image = each.key == "toolbox" ? "us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest" : "us-docker.pkg.dev/cloudrun/container/hello"
       
       command = null
-      args    = null
+      args    = each.key == "toolbox" ? ["--address", "0.0.0.0"] : null
 
       ports {
         container_port = each.key == "nextjs-frontend" ? 3000 : 8080
@@ -96,8 +96,7 @@ resource "google_cloud_run_v2_service" "services" {
         for_each = each.key == "toolbox" ? [1] : []
         content {
           name       = "config-volume"
-          mount_path = "/app/tools.yaml"
-          sub_path   = "tools.yaml"
+          mount_path = "/app"
         }
       }
     }
