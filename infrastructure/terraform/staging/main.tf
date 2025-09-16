@@ -74,6 +74,19 @@ resource "google_cloud_run_v2_service" "services" {
         container_port = each.key == "nextjs-frontend" ? 3000 : (each.key == "toolbox" ? 5000 : 8080)
       }
 
+      dynamic "env" {
+        for_each = each.key == "toolbox" ? [1] : []
+        content {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password_secret.secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
       dynamic "volume_mounts" {
         for_each = each.key == "toolbox" ? [1] : []
         content {
