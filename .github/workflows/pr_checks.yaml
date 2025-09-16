@@ -45,10 +45,10 @@ jobs:
           project_id: ${{ vars.CICD_PROJECT_ID }}
 
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install uv and dependencies
         run: |
