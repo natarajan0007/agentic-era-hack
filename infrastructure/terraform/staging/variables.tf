@@ -13,3 +13,9 @@ variable "service_names" {
   description = "A list of names for the services to be created."
   default     = ["adk-agent", "fastapi-backend", "nextjs-frontend", "toolbox"]
 }
+
+variable "db_password" {
+  type        = string
+  description = "The password for the PostgreSQL database."
+  sensitive   = true
+}

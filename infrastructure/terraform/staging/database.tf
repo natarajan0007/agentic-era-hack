@@ -1,8 +1,3 @@
-resource "random_password" "db_password" {
-  length           = 16
-  special          = false
-}
-
 resource "google_secret_manager_secret" "db_password_secret" {
   project   = var.gcp_project_id
   secret_id = "db-password"
@@ -14,7 +9,7 @@ resource "google_secret_manager_secret" "db_password_secret" {
 
 resource "google_secret_manager_secret_version" "db_password_version" {
   secret      = google_secret_manager_secret.db_password_secret.id
-  secret_data = random_password.db_password.result
+  secret_data = var.db_password
 }
 
 resource "google_sql_database_instance" "postgres_instance" {
@@ -22,7 +17,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   name             = "${var.gcp_project_id}-pg-instance"
   database_version = "POSTGRES_14"
   region           = var.gcp_region
-  root_password    = random_password.db_password.result
+  root_password    = var.db_password
 
   settings {
     tier = "db-g1-small"
