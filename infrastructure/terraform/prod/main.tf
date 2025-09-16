@@ -143,3 +143,50 @@ resource "google_project_iam_member" "toolbox_sql_client" {
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
 }
+
+# --- CICD Resources (Created only in the Prod/CICD Project) ---
+
+resource "google_service_account" "cicd_runner_sa" {
+  project      = var.gcp_project_id # Assumes prod project is the cicd project
+  account_id   = "${var.repository_name}-cicd-sa"
+  display_name = "CICD Runner Service Account"
+  depends_on   = [google_project_service.apis]
+}
+
+resource "google_iam_workload_identity_pool" "wif_pool" {
+  project                   = var.gcp_project_id
+  workload_identity_pool_id = "${var.repository_name}-pool"
+  display_name              = "GitHub Actions WIF Pool"
+  depends_on                = [google_project_service.apis]
+}
+
+resource "google_iam_workload_identity_pool_provider" "wif_provider" {
+  project                            = var.gcp_project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.wif_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "${var.repository_name}-provider"
+  display_name                       = "GitHub OIDC Provider"
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub",
+    "attribute.repository" = "assertion.repository",
+  }
+  attribute_condition = "attribute.repository == \"${var.repository_owner}/${var.repository_name}\""
+}
+
+resource "google_service_account_iam_member" "wif_user" {
+  project              = var.gcp_project_id
+  service_account_id = google_service_account.cicd_runner_sa.name
+  role                 = "roles/iam.workloadIdentityUser"
+  member               = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.wif_pool.name}/attribute.repository/${var.repository_owner}/${var.repository_name}"
+}
+
+# Grant CICD service account permissions on this project
+resource "google_project_iam_member" "cicd_permissions" {
+  project = var.gcp_project_id
+  for_each = toset(["roles/run.admin", "roles/cloudbuild.builds.builder", "roles/iam.serviceAccountUser", "roles/secretmanager.admin"])
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.cicd_runner_sa.email}"
+  depends_on = [google_project_service.apis]
+}
