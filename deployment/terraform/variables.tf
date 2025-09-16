@@ -97,7 +97,8 @@ variable "cicd_sa_deployment_required_roles" {
     "roles/iam.serviceAccountUser",
     "roles/aiplatform.user",
     "roles/storage.admin",
-    "roles/cloudbuild.builds.builder"
+    "roles/cloudbuild.builds.builder",
+    "roles/cloudbuild.viewer"
   ]
 }
 
