@@ -46,7 +46,7 @@ resource "google_secret_manager_secret" "toolbox_config_secret" {
 
 resource "google_secret_manager_secret_version" "toolbox_config_version" {
   secret      = google_secret_manager_secret.toolbox_config_secret.id
-  secret_data = file("${path.module}/../../services/toolbox/tools.yaml")
+  secret_data = file("${path.module}/../../../services/toolbox/tools.yaml")
 }
 
 # Create a Cloud Run service for each application
