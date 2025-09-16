@@ -19,7 +19,7 @@ resource "google_cloud_run_v2_service" "agent_service" {
   template {
     service_account = google_service_account.app_sa[each.key].email
     containers {
-      image = "${var.region}-docker.pkg.dev/${each.value}/${google_artifact_registry_repository.container_registry[each.key].repository_id}/${var.project_name}:latest"
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
       ports {
         container_port = 8080
       }
