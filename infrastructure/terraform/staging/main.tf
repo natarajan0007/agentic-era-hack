@@ -172,7 +172,7 @@ resource "google_iam_workload_identity_pool_provider" "wif_provider" {
     "google.subject"       = "assertion.sub",
     "attribute.repository" = "assertion.repository",
   }
-  attribute_condition = "attribute.repository == \"${var.repository_owner}/${var.repository_name}\""
+  attribute_condition = "attribute.repository == "${var.repository_owner}/${var.repository_name}""
 }
 
 resource "google_service_account_iam_member" "wif_user" {
@@ -188,4 +188,23 @@ resource "google_project_iam_member" "cicd_permissions" {
   role    = each.value
   member  = "serviceAccount:${google_service_account.cicd_runner_sa.email}"
   depends_on = [google_project_service.apis]
+}
+
+# For STAGING environment - fix the logging issue
+resource "google_project_iam_member" "staging_cicd_logging_viewer" {
+  project = var.staging_project_id
+  role    = "roles/logging.viewer"
+  member  = "serviceAccount:ae-cicd-sa-staging@${var.staging_project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "staging_cicd_cloudbuild_viewer" {
+  project = var.staging_project_id
+  role    = "roles/cloudbuild.builds.viewer"
+  member  = "serviceAccount:ae-cicd-sa-staging@${var.staging_project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "staging_cicd_cloudbuild_editor" {
+  project = var.staging_project_id
+  role    = "roles/cloudbuild.builds.editor"
+  member  = "serviceAccount:ae-cicd-sa-staging@${var.staging_project_id}.iam.gserviceaccount.com"
 }
