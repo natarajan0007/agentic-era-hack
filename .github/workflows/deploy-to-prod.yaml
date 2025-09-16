@@ -116,7 +116,8 @@ jobs:
             --tag "$IMAGE_URL" \
             --project=${{ env.PROD_PROJECT_ID }} \
             --timeout=30m \
-            --machine-type=e2-highcpu-8
+            --machine-type=e2-highcpu-8 \
+            --gcs-log-dir=gs://${{ env.PROD_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |
@@ -183,7 +184,8 @@ jobs:
             --tag "$IMAGE_URL" \
             --project=${{ env.PROD_PROJECT_ID }} \
             --timeout=30m \
-            --machine-type=e2-highcpu-8
+            --machine-type=e2-highcpu-8 \
+            --gcs-log-dir=gs://${{ env.PROD_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |
@@ -250,7 +252,8 @@ jobs:
             --tag "$IMAGE_URL" \
             --project=${{ env.PROD_PROJECT_ID }} \
             --timeout=30m \
-            --machine-type=e2-highcpu-8
+            --machine-type=e2-highcpu-8 \
+            --gcs-log-dir=gs://${{ env.PROD_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |

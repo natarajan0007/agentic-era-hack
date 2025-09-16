@@ -62,7 +62,8 @@ jobs:
           gcloud builds submit ./services/adk-agent \
             --tag "$IMAGE_URL" \
             --project=${{ env.STAGING_PROJECT_ID }} \
-            --timeout=20m
+            --timeout=20m \
+            --gcs-log-dir=gs://${{ env.STAGING_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |
@@ -111,7 +112,8 @@ jobs:
           gcloud builds submit ./services/fastapi-backend \
             --tag "$IMAGE_URL" \
             --project=${{ env.STAGING_PROJECT_ID }} \
-            --timeout=20m
+            --timeout=20m \
+            --gcs-log-dir=gs://${{ env.STAGING_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |
@@ -160,7 +162,8 @@ jobs:
           gcloud builds submit ./services/nextjs-frontend \
             --tag "$IMAGE_URL" \
             --project=${{ env.STAGING_PROJECT_ID }} \
-            --timeout=20m
+            --timeout=20m \
+            --gcs-log-dir=gs://${{ env.STAGING_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
         run: |
