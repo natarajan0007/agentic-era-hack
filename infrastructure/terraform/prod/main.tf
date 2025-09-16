@@ -176,7 +176,7 @@ resource "google_iam_workload_identity_pool_provider" "wif_provider" {
     "google.subject"       = "assertion.sub",
     "attribute.repository" = "assertion.repository",
   }
-  attribute_condition = "attribute.repository == "${var.repository_owner}/${var.repository_name}""
+  attribute_condition = "attribute.repository == \"${var.repository_owner}/${var.repository_name}\""
 }
 
 resource "google_service_account_iam_member" "wif_user" {
