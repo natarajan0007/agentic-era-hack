@@ -25,7 +25,7 @@ resource "google_project_iam_member" "cicd_project_roles" {
   project    = var.cicd_runner_project_id
   role       = each.value
   member     = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
-  depends_on = [google_project_service.services]
+  depends_on = [google_project_service.cicd_services, google_project_service.deploy_project_services]
 
 }
 
@@ -42,7 +42,7 @@ resource "google_project_iam_member" "other_projects_roles" {
   project    = each.value.project_id
   role       = each.value.role
   member     = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
-  depends_on = [google_project_service.services]
+  depends_on = [google_project_service.cicd_services, google_project_service.deploy_project_services]
 }
 # 3. Grant application SA the required permissions to run the application
 resource "google_project_iam_member" "app_sa_roles" {
@@ -57,7 +57,7 @@ resource "google_project_iam_member" "app_sa_roles" {
   project    = each.value.project
   role       = each.value.role
   member     = "serviceAccount:${google_service_account.app_sa[split(",", each.key)[0]].email}"
-  depends_on = [google_project_service.services]
+  depends_on = [google_project_service.cicd_services, google_project_service.deploy_project_services]
 }
 
 
@@ -68,12 +68,12 @@ resource "google_service_account_iam_member" "cicd_run_invoker_token_creator" {
   service_account_id = google_service_account.cicd_runner_sa.name
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
-  depends_on         = [google_project_service.services]
+  depends_on         = [google_project_service.cicd_services, google_project_service.deploy_project_services]
 }
 # Special assignment: Allow the CICD SA to impersonate himself for trigger creation
 resource "google_service_account_iam_member" "cicd_run_invoker_account_user" {
   service_account_id = google_service_account.cicd_runner_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
-  depends_on         = [google_project_service.services]
+  depends_on         = [google_project_service.cicd_services, google_project_service.deploy_project_services]
 }
