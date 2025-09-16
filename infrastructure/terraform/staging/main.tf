@@ -47,8 +47,9 @@ resource "google_secret_manager_secret" "toolbox_config_secret" {
 resource "google_secret_manager_secret_version" "toolbox_config_version" {
   secret      = google_secret_manager_secret.toolbox_config_secret.id
   secret_data = templatefile("${path.module}/../../../services/toolbox/tools.yaml.tftpl", {
-    db_connection_name    = google_sql_database_instance.postgres_instance.connection_name
-    db_password_secret_id = google_secret_manager_secret.db_password_secret.id
+    gcp_project_id   = var.gcp_project_id
+    gcp_region       = var.gcp_region
+    db_instance_name = google_sql_database_instance.postgres_instance.name
   })
 }
 

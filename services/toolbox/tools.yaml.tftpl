@@ -5,7 +5,9 @@
 sources:
   my-pg-source:
     kind: cloud-sql-postgres
-    instance: "${db_connection_name}"
+    project: "${gcp_project_id}"
+    region: "${gcp_region}"
+    instance: "${db_instance_name}"
     database: "pdf_processing"
     user: "postgres"
     password: "$DB_PASSWORD"
