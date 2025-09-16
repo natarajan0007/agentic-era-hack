@@ -13,11 +13,14 @@ playground:
 	@echo "==============================================================================="
 	uv run adk web . --port 8501 --reload_agents
 
-# Deploy the agent remotely
+# Deploy the agent remotely to Cloud Run
 backend:
-	# Export dependencies to requirements file using uv export.
-	uv export --no-hashes --no-header --no-dev --no-emit-project --no-annotate > .requirements.txt 2>/dev/null || \
-	uv export --no-hashes --no-header --no-dev --no-emit-project > .requirements.txt && uv run app/agent_engine_app.py
+	@echo "Deploying agent to Cloud Run..."
+	gcloud run deploy intellicaai \
+		--source . \
+		--region europe-west1 \
+		--allow-unauthenticated
+
 
 # Set up development environment resources using Terraform
 setup-dev-env:

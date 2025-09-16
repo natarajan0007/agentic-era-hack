@@ -85,7 +85,8 @@ variable "cicd_roles" {
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
     "roles/artifactregistry.writer",
-    "roles/cloudbuild.builds.builder"
+    "roles/cloudbuild.builds.builder",
+    "roles/run.admin"
   ]
 }
 

@@ -36,10 +36,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
@@ -50,19 +50,28 @@ jobs:
           create_credentials_file: true
           project_id: ${{ vars.CICD_PROJECT_ID }}
 
-      - name: Install uv and dependencies
-        run: |
-          pip install uv==0.6.12
-          uv sync --locked
+      - name: Build and Push Container Image
+        env:
+          PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
+          REGION: ${{ vars.REGION }}
+          REPOSITORY_ID: intellicaai-repo
+          SERVICE_NAME: intellicaai
+        run: |- 
+          gcloud builds submit . --tag "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
-      - name: Deploy to Staging (Agent Engine)
-        run: |
-          uv export --no-hashes --no-sources --no-header --no-dev --no-emit-project --no-annotate --locked > .requirements.txt
-          uv run app/agent_engine_app.py \
-            --project ${{ vars.STAGING_PROJECT_ID }} \
-            --location ${{ vars.REGION }} \
-            --service-account ${{ vars.APP_SA_EMAIL_STAGING }} \
-            --set-env-vars="COMMIT_SHA=${{ github.sha }}"
+      - name: Deploy to Cloud Run
+        env:
+          PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
+          REGION: ${{ vars.REGION }}
+          SERVICE_NAME: intellicaai
+          APP_SA_EMAIL: ${{ vars.APP_SA_EMAIL_STAGING }}
+        run: |- 
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/intellicaai-repo/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --service-account ${{ env.APP_SA_EMAIL }} \
+            --allow-unauthenticated
 
       - name: Fetch Auth Token
         id: fetch-token
