@@ -1,0 +1,247 @@
+# IMPORTANT: The 'host' below is set to 'host.docker.internal', which works for local Docker.
+# When deploying to Cloud Run, you MUST replace this with the actual IP address or DNS name of your PostgreSQL database.
+# It is also highly recommended to store the 'password' in Google Secret Manager and reference it here.
+
+sources:
+  my-pg-source:
+    kind: postgres
+    host: host.docker.internal
+    port: 5433
+    database: pdf_processing
+    user: postgres
+    password: password
+
+tools:
+  search-documents-by-filename:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search for documents based on filename or original filename.
+    parameters:
+      - name: filename
+        type: string
+        description: The filename to search for (partial matches supported).
+    statement: SELECT id, filename, original_filename, file_size, mime_type, page_count, processing_status, upload_timestamp, created_at, updated_at FROM documents WHERE filename ILIKE '%' || $1 || '%' OR original_filename ILIKE '%' || $1 || '%';
+
+  get-document-details:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get detailed information about a specific document by ID.
+    parameters:
+      - name: document_id
+        type: string
+        description: The ID of the document to retrieve.
+    statement: SELECT * FROM documents WHERE id = $1;
+
+  search-documents-by-status:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search for documents based on their processing status.
+    parameters:
+      - name: status
+        type: string
+        description: The processing status to filter by (e.g., 'completed', 'processing', 'failed').
+    statement: SELECT id, filename, original_filename, processing_status, upload_timestamp, file_size, created_at, updated_at FROM documents WHERE processing_status = $1 ORDER BY upload_timestamp DESC;
+
+  search-documents-by-user:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search for documents uploaded by a specific user.
+    parameters:
+      - name: user_id
+        type: string
+        description: The user ID to search for.
+    statement: SELECT id, filename, original_filename, file_size, processing_status, upload_timestamp, created_at, updated_at FROM documents WHERE user_id = $1 ORDER BY upload_timestamp DESC;
+
+  get-document-extractions:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get all extraction data for a specific document.
+    parameters:
+      - name: document_id
+        type: string
+        description: The ID of the document to get extractions for.
+    statement: SELECT id, extracted_data, confidence_scores, missing_fields, mapped_highlights, ai_corrections, extraction_method, processing_time, drawing_register, project_contributors, cell_site_details, site_summary, status, error_message, created_at, updated_at FROM extractions WHERE document_id = $1;
+
+  search-extractions-by-content:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Search through extracted document content using JSON queries.
+    parameters:
+      - name: search_term
+        type: string
+        description: The term to search for in extracted data.
+    statement: SELECT e.id, e.document_id, d.filename, e.extracted_data, e.confidence_scores, e.mapped_highlights, e.ai_corrections, e.drawing_register, e.project_contributors, e.cell_site_details, e.site_summary, e.error_message, e.created_at, e.updated_at FROM extractions e JOIN documents d ON e.document_id = d.id WHERE e.extracted_data::text ILIKE '%' || $1 || '%';
+
+  get-recent-documents:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get recently uploaded documents, optionally limited by count.
+    parameters:
+      - name: limit_count
+        type: integer
+        description: Maximum number of documents to return (default 10).
+    statement: SELECT id, filename, original_filename, file_size, processing_status, upload_timestamp, user_id, created_at, updated_at FROM documents ORDER BY upload_timestamp DESC LIMIT $1;
+
+  get-documents-by-date-range:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get documents uploaded within a specific date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: Start date in YYYY-MM-DD format.
+      - name: end_date
+        type: string
+        description: End date in YYYY-MM-DD format.
+    statement: SELECT id, filename, original_filename, file_size, processing_status, upload_timestamp, created_at, updated_at FROM documents WHERE upload_timestamp::date BETWEEN $1::date AND $2::date ORDER BY upload_timestamp DESC;
+
+  get-extraction-statistics:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get processing statistics and counts for extractions.
+    parameters: []
+    statement: SELECT status, COUNT(*) as count, AVG(processing_time) as avg_processing_time FROM extractions GROUP BY status;
+
+  update-document-status:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Update the processing status of a document.
+    parameters:
+      - name: document_id
+        type: string
+        description: The ID of the document to update.
+      - name: new_status
+        type: string
+        description: The new processing status.
+    statement: UPDATE documents SET processing_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+
+  count-documents-by-user:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Count the number of documents uploaded by a specific user.
+    parameters:
+      - name: user_id
+        type: string
+        description: The user ID to search for.
+    statement: SELECT COUNT(*) FROM documents WHERE user_id = $1;
+
+  get-cost-and-token-stats:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Summarize total cost, input tokens, and output tokens for completed documents within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+    statement: SELECT SUM(e.calculated_cost_usd), SUM(e.total_input_tokens), SUM(e.total_output_tokens) FROM extractions e JOIN documents d ON e.document_id = d.id WHERE d.processing_status = 'completed' AND d.upload_timestamp::date BETWEEN $1::date AND $2::date;
+
+  get-top-upload-users:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the top users by the number of documents uploaded within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+      - name: limit
+        type: integer
+        description: The maximum number of users to return (default 10).
+    statement: SELECT d.user_id, COUNT(d.id) FROM documents d WHERE d.processing_status = 'completed' AND d.upload_timestamp::date BETWEEN $1::date AND $2::date AND d.user_id IS NOT NULL GROUP BY d.user_id ORDER BY COUNT(d.id) DESC LIMIT $3;
+
+  get-document-counts-by-type:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the count of documents for each document type within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+    statement: SELECT m.document_type, COUNT(m.id) FROM upload_metadata m JOIN documents d ON m.document_id = d.id WHERE d.upload_timestamp::date BETWEEN $1::date AND $2::date GROUP BY m.document_type;
+
+  get-document-counts-by-supplier:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the count of documents for each supplier within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+    statement: SELECT s.name, COUNT(m.id) FROM upload_metadata m JOIN suppliers s ON m.supplier_id = s.id JOIN documents d ON m.document_id = d.id WHERE d.upload_timestamp::date BETWEEN $1::date AND $2::date GROUP BY s.name;
+
+  get-top-documents-by-size:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the top documents by file size within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+      - name: limit
+        type: integer
+        description: The maximum number of documents to return (default 10).
+    statement: SELECT id, original_filename, file_size FROM documents WHERE upload_timestamp::date BETWEEN $1::date AND $2::date ORDER BY file_size DESC LIMIT $3;
+
+  get-top-documents-by-page-count:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the top documents by page count within a date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+      - name: limit
+        type: integer
+        description: The maximum number of documents to return (default 10).
+    statement: SELECT id, original_filename, page_count FROM documents WHERE upload_timestamp::date BETWEEN $1::date AND $2::date ORDER BY page_count DESC LIMIT $3;
+
+  get-cost-by-model:
+    kind: postgres-sql
+    source: my-pg-source
+    description: Get the total cost broken down by AI model for a given date range.
+    parameters:
+      - name: start_date
+        type: string
+        description: The start date for the analysis (YYYY-MM-DD).
+      - name: end_date
+        type: string
+        description: The end date for the analysis (YYYY-MM-DD).
+    statement: SELECT e.model_used, SUM(e.calculated_cost_usd) FROM extractions e JOIN documents d ON e.document_id = d.id WHERE d.processing_status = 'completed' AND d.upload_timestamp::date BETWEEN $1::date AND $2::date AND e.model_used IS NOT NULL GROUP BY e.model_used;
+
+toolsets:
+  my-toolset:
+    - search-documents-by-filename
+    - get-document-details
+    - search-documents-by-status
+    - search-documents-by-user
+    - get-document-extractions
+    - search-extractions-by-content
+    - get-recent-documents
+    - get-documents-by-date-range
+    - get-extraction-statistics
+    - update-document-status
+    - count-documents-by-user
+    - get-cost-and-token-stats
+    - get-top-upload-users
+    - get-document-counts-by-type
+    - get-document-counts-by-supplier
+    - get-top-documents-by-size
+    - get-top-documents-by-page-count
+    - get-cost-by-model
