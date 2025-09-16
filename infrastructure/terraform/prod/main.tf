@@ -196,19 +196,19 @@ resource "google_project_iam_member" "cicd_permissions" {
 
 # For PRODUCTION environment - same fixes
 resource "google_project_iam_member" "prod_cicd_logging_viewer" {
-  project = var.prod_project_id
+  project = var.gcp_project_id
   role    = "roles/logging.viewer"
-  member  = "serviceAccount:ae-cicd-sa-prod@${var.prod_project_id}.iam.gserviceaccount.com"
+  member  = "serviceAccount:ae-cicd-sa-prod@${var.gcp_project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_project_iam_member" "prod_cicd_cloudbuild_viewer" {
-  project = var.prod_project_id
+  project = var.gcp_project_id
   role    = "roles/cloudbuild.builds.viewer"
-  member  = "serviceAccount:ae-cicd-sa-prod@${var.prod_project_id}.iam.gserviceaccount.com"
+  member  = "serviceAccount:ae-cicd-sa-prod@${var.gcp_project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_project_iam_member" "prod_cicd_cloudbuild_editor" {
-  project = var.prod_project_id
+  project = var.gcp_project_id
   role    = "roles/cloudbuild.builds.editor"
-  member  = "serviceAccount:ae-cicd-sa-prod@${var.prod_project_id}.iam.gserviceaccount.com"
+  member  = "serviceAccount:ae-cicd-sa-prod@${var.gcp_project_id}.iam.gserviceaccount.com"
 }
