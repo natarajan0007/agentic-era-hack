@@ -26,9 +26,8 @@ on:
         type: string
 
 env:
-  GCP_REGION: ${{ vars.REGION }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
   PROD_PROJECT_ID: ${{ vars.PROD_PROJECT_ID }}
-  REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME }}
 
 jobs:
   # Security check to prevent accidental deployments
@@ -291,9 +290,7 @@ jobs:
       - name: Generate deployment report
         run: |
           echo "## 📊 Production Deployment Results" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment ID**: 
-${{ github.run_id }}
-" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment ID**: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Initiated by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Git Reference**: ${{ github.event.inputs.git_ref }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit SHA**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
@@ -317,3 +314,14 @@ ${{ github.run_id }}
         run: |
           echo "❌ Production deployment failed!" >> $GITHUB_STEP_SUMMARY
           echo "Please check the logs above for detailed error information." >> $GITHUB_STEP_SUMMARY
+
+  notify-success:
+    needs: [validate-deployment, deploy-adk-agent-prod, deploy-fastapi-backend-prod, deploy-nextjs-frontend-prod]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success notification
+        run: |
+          echo "## ✅ Production Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "All selected services have been successfully deployed to production." >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
