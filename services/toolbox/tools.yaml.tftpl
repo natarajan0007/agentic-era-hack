@@ -4,9 +4,8 @@
 
 sources:
   my-pg-source:
-    kind: postgres
-    host: "${db_host}"
-    port: 5433
+    kind: cloudsql_postgres
+    instance: "${db_connection_name}"
     database: "pdf_processing"
     user: "postgres"
     password: "$DB_PASSWORD"

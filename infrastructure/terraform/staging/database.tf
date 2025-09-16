@@ -26,13 +26,6 @@ resource "google_sql_database_instance" "postgres_instance" {
 
   settings {
     tier = "db-g1-small"
-    ip_configuration {
-      ipv4_enabled = true
-      authorized_networks {
-        name  = "allow-all"
-        value = "0.0.0.0/0" # WARNING: This allows all IPs. Not for production use.
-      }
-    }
   }
 
   # This is required for terraform to be able to destroy the instance.

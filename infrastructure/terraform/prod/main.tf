@@ -47,8 +47,8 @@ resource "google_secret_manager_secret" "toolbox_config_secret" {
 resource "google_secret_manager_secret_version" "toolbox_config_version" {
   secret      = google_secret_manager_secret.toolbox_config_secret.id
   secret_data = templatefile("${path.module}/../../../services/toolbox/tools.yaml.tftpl", {
-    db_host                 = google_sql_database_instance.postgres_instance.public_ip_address
-    db_password_secret_id   = google_secret_manager_secret.db_password_secret.id
+    db_connection_name    = google_sql_database_instance.postgres_instance.connection_name
+    db_password_secret_id = google_secret_manager_secret.db_password_secret.id
   })
 }
 
@@ -62,6 +62,9 @@ resource "google_cloud_run_v2_service" "services" {
   deletion_protection = false
 
   template {
+    annotations = {
+      "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres_instance.connection_name
+    }
     service_account = google_service_account.app_service_accounts[each.key].email
 
     containers {
