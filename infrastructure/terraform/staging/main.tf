@@ -39,7 +39,7 @@ resource "google_secret_manager_secret" "toolbox_config_secret" {
   secret_id = "toolbox-tools-yaml"
 
   replication {
-    automatic = true
+    auto {}
   }
   depends_on = [google_project_service.apis]
 }
