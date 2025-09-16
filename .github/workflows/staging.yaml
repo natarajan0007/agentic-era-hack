@@ -77,7 +77,7 @@ jobs:
             --set-env-vars="ENVIRONMENT=staging" \
             --memory=1Gi \
             --cpu=1 \
-            --max-instances=10 \
+            --max-instances=2 \
             --timeout=600s
 
   deploy-fastapi-backend:
@@ -127,7 +127,7 @@ jobs:
             --set-env-vars="ENVIRONMENT=staging" \
             --memory=2Gi \
             --cpu=2 \
-            --max-instances=8 \
+            --max-instances=2 \
             --timeout=300s
 
   deploy-nextjs-frontend:
@@ -177,7 +177,7 @@ jobs:
             --set-env-vars="ENVIRONMENT=staging" \
             --memory=1Gi \
             --cpu=1 \
-            --max-instances=10 \
+            --max-instances=2 \
             --timeout=300s
 
   notify-deployment:
