@@ -73,19 +73,31 @@ resource "google_cloud_run_v2_service" "services" {
       image = each.key == "toolbox" ? "us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest" : "us-docker.pkg.dev/cloudrun/container/hello"
       
       command = null
-      args    = each.key == "toolbox" ? ["--tools-file", "/config/tools.yaml", "--address", "0.0.0.0:5000"] : null
+      args    = null
 
       ports {
-        container_port = each.key == "nextjs-frontend" ? 3000 : (each.key == "toolbox" ? 5000 : 8080)
+        container_port = each.key == "nextjs-frontend" ? 3000 : 8080
       }
 
-      
+      dynamic "env" {
+        for_each = each.key == "toolbox" ? [1] : []
+        content {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password_secret.secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
 
       dynamic "volume_mounts" {
         for_each = each.key == "toolbox" ? [1] : []
         content {
           name       = "config-volume"
-          mount_path = "/config"
+          mount_path = "/app/tools.yaml"
+          sub_path   = "tools.yaml"
         }
       }
     }
