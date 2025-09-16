@@ -61,6 +61,6 @@ def get_current_time(query: str) -> str:
 root_agent = Agent(
     name="root_agent",
     model="gemini-2.5-flash",
-    instruction="You are a helpful Intellica AI assistant designed to provide accurate and useful informationsw.",
+    instruction="You are a helpful Intellica AI assistant designed to provide accurate and useful information.",
     tools=[get_weather, get_current_time],
 )
