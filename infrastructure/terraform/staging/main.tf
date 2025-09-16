@@ -73,10 +73,10 @@ resource "google_cloud_run_v2_service" "services" {
       image = each.key == "toolbox" ? "us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest" : "us-docker.pkg.dev/cloudrun/container/hello"
       
       command = null
-      args    = each.key == "toolbox" ? ["--address", "0.0.0.0"] : null
+      args    = each.key == "toolbox" ? ["--address", "0.0.0.0", "--port", "5000"] : null
 
       ports {
-        container_port = each.key == "nextjs-frontend" ? 3000 : 8080
+        container_port = each.key == "nextjs-frontend" ? 3000 : (each.key == "toolbox" ? 5000 : 8080)
       }
 
       dynamic "env" {
