@@ -22,6 +22,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   name             = "${var.gcp_project_id}-pg-instance"
   database_version = "POSTGRES_14"
   region           = var.gcp_region
+  root_password    = random_password.db_password.result
 
   settings {
     tier = "db-g1-small"
@@ -35,11 +36,4 @@ resource "google_sql_database" "db" {
   project  = var.gcp_project_id
   instance = google_sql_database_instance.postgres_instance.name
   name     = "pdf_processing"
-}
-
-resource "google_sql_user" "db_user" {
-  project  = var.gcp_project_id
-  instance = google_sql_database_instance.postgres_instance.name
-  name     = "postgres"
-  password = random_password.db_password.result
 }
