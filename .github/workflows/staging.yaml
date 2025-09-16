@@ -5,48 +5,187 @@ on:
     branches:
       - main
 
+env:
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  STAGING_PROJECT_ID: ${{ vars.STAGING_PROJECT_ID }}
+
 jobs:
+  # Check what changed to optimize builds
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      adk-agent: ${{ steps.changes.outputs.adk-agent }}
+      fastapi-backend: ${{ steps.changes.outputs.fastapi-backend }}
+      nextjs-frontend: ${{ steps.changes.outputs.nextjs-frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            adk-agent:
+              - 'services/adk-agent/**'
+            fastapi-backend:
+              - 'services/fastapi-backend/**'
+            nextjs-frontend:
+              - 'services/nextjs-frontend/**'
+
   deploy-adk-agent:
-    if: "contains(github.event.head_commit.message, '[adk-agent]') || !contains(github.event.head_commit.message, '[')"
+    needs: changes
+    if: |
+      needs.changes.outputs.adk-agent == 'true' || 
+      contains(github.event.head_commit.message, '[adk-agent]') || 
+      (!contains(github.event.head_commit.message, '[') && !contains(github.event.head_commit.message, 'skip-deploy'))
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
-      - uses: actions/checkout@v4
-      - uses: 'google-github-actions/auth@v2'
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.WIF_POOL_ID }}/providers/${{ secrets.WIF_PROVIDER_ID }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-      - run: gcloud builds submit ./services/adk-agent --tag "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/adk-agent-repo/adk-agent:${{ github.sha }}" --project=${{ vars.STAGING_PROJECT_ID }}
-      - run: gcloud run deploy adk-agent --image "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/adk-agent-repo/adk-agent:${{ github.sha }}" --region ${{ vars.GCP_REGION }} --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ vars.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" --project=${{ vars.STAGING_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
+          
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+        
+      - name: Build and push Docker image
+        run: |
+          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/adk-agent-repo/adk-agent:${{ github.sha }}"
+          gcloud builds submit ./services/adk-agent \
+            --tag "$IMAGE_URL" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --timeout=20m
+            
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy adk-agent \
+            --image "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/adk-agent-repo/adk-agent:${{ github.sha }}" \
+            --region ${{ env.GCP_REGION }} \
+            --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars="ENVIRONMENT=staging" \
+            --memory=1Gi \
+            --cpu=1 \
+            --max-instances=10 \
+            --timeout=300s
 
   deploy-fastapi-backend:
-    if: "contains(github.event.head_commit.message, '[fastapi-backend]') || !contains(github.event.head_commit.message, '[')"
+    needs: changes  
+    if: |
+      needs.changes.outputs.fastapi-backend == 'true' || 
+      contains(github.event.head_commit.message, '[fastapi-backend]') || 
+      (!contains(github.event.head_commit.message, '[') && !contains(github.event.head_commit.message, 'skip-deploy'))
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
-      - uses: actions/checkout@v4
-      - uses: 'google-github-actions/auth@v2'
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.WIF_POOL_ID }}/providers/${{ secrets.WIF_PROVIDER_ID }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-      - run: gcloud builds submit ./services/fastapi-backend --tag "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/fastapi-backend-repo/fastapi-backend:${{ github.sha }}" --project=${{ vars.STAGING_PROJECT_ID }}
-      - run: gcloud run deploy fastapi-backend --image "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/fastapi-backend-repo/fastapi-backend:${{ github.sha }}" --region ${{ vars.GCP_REGION }} --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ vars.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" --project=${{ vars.STAGING_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
+          
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+        
+      - name: Build and push Docker image
+        run: |
+          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/fastapi-backend-repo/fastapi-backend:${{ github.sha }}"
+          gcloud builds submit ./services/fastapi-backend \
+            --tag "$IMAGE_URL" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --timeout=20m
+            
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy fastapi-backend \
+            --image "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/fastapi-backend-repo/fastapi-backend:${{ github.sha }}" \
+            --region ${{ env.GCP_REGION }} \
+            --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars="ENVIRONMENT=staging" \
+            --memory=2Gi \
+            --cpu=2 \
+            --max-instances=20 \
+            --timeout=300s
 
   deploy-nextjs-frontend:
-    if: "contains(github.event.head_commit.message, '[nextjs-frontend]') || !contains(github.event.head_commit.message, '[')"
+    needs: changes
+    if: |
+      needs.changes.outputs.nextjs-frontend == 'true' || 
+      contains(github.event.head_commit.message, '[nextjs-frontend]') || 
+      (!contains(github.event.head_commit.message, '[') && !contains(github.event.head_commit.message, 'skip-deploy'))
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
-      - uses: actions/checkout@v4
-      - uses: 'google-github-actions/auth@v2'
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.WIF_POOL_ID }}/providers/${{ secrets.WIF_PROVIDER_ID }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-      - run: gcloud builds submit ./services/nextjs-frontend --tag "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/nextjs-frontend-repo/nextjs-frontend:${{ github.sha }}" --project=${{ vars.STAGING_PROJECT_ID }}
-      - run: gcloud run deploy nextjs-frontend --image "${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.STAGING_PROJECT_ID }}/nextjs-frontend-repo/nextjs-frontend:${{ github.sha }}" --region ${{ vars.GCP_REGION }} --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ vars.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" --project=${{ vars.STAGING_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
+          
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+        
+      - name: Build and push Docker image
+        run: |
+          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/nextjs-frontend-repo/nextjs-frontend:${{ github.sha }}"
+          gcloud builds submit ./services/nextjs-frontend \
+            --tag "$IMAGE_URL" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --timeout=20m
+            
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy nextjs-frontend \
+            --image "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.STAGING_PROJECT_ID }}/nextjs-frontend-repo/nextjs-frontend:${{ github.sha }}" \
+            --region ${{ env.GCP_REGION }} \
+            --service-account "${{ vars.REPOSITORY_NAME }}-app-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars="ENVIRONMENT=staging" \
+            --memory=1Gi \
+            --cpu=1 \
+            --max-instances=10 \
+            --timeout=300s
+
+  notify-deployment:
+    needs: [deploy-adk-agent, deploy-fastapi-backend, deploy-nextjs-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ADK Agent: ${{ needs.deploy-adk-agent.result }}" >> $GITHUB_STEP_SUMMARY  
+          echo "- FastAPI Backend: ${{ needs.deploy-fastapi-backend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Next.js Frontend: ${{ needs.deploy-nextjs-frontend.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit SHA: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
