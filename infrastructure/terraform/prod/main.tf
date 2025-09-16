@@ -67,7 +67,7 @@ resource "google_cloud_run_v2_service" "services" {
     containers {
       image = each.key == "toolbox" ? "us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest" : "us-docker.pkg.dev/cloudrun/container/hello"
       
-      command = each.key == "toolbox" ? ["./toolbox"] : null
+      command = null
       args    = each.key == "toolbox" ? ["--tools-file", "/config/tools.yaml", "--address", "0.0.0.0:5000"] : null
 
       ports {
