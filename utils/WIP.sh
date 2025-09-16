@@ -1,45 +1,67 @@
 #!/bin/bash
 
-# Configuration - CORRECTED: Using PROJECT_ID, not project number
-PROJECT_ID="qwiklabs-gcp-02-b02e3ca6f413"  # This is the PROJECT ID
-PROJECT_NUMBER="939854106735"              # This is the PROJECT NUMBER  
-POOL_ID="agentic-era-hack-pool" 
+# Configuration
+PROJECT_ID="qwiklabs-gcp-03-bc59c8288afe"
+PROJECT_NUMBER="1050008974311"
+POOL_ID="agentic-era-hack-pool"
 PROVIDER_ID="agentic-era-hack-provider"
-SERVICE_ACCOUNT="agentic-era-hack-cicd-sa@qwiklabs-gcp-02-b02e3ca6f413.iam.gserviceaccount.com"
-REPO="yourusername/agentic-era-hack"  # Replace with your actual GitHub repo
+SERVICE_ACCOUNT_NAME="agentic-era-hack-cicd-sa"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+REPO="student_02_6fa5ad690017/agentic-era-hack"
 
 echo "Setting up Workload Identity Federation for GitHub Actions..."
 
 # Step 1: Enable required APIs
 echo "Enabling required APIs..."
-gcloud services enable iamcredentials.googleapis.com --project=$PROJECT_ID
-gcloud services enable sts.googleapis.com --project=$PROJECT_ID
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project=$PROJECT_ID
 
-# Step 2: Create Workload Identity Pool
+# Step 2: Create or get Service Account
+echo "Creating or getting service account..."
+gcloud iam service-accounts describe $SERVICE_ACCOUNT --project=$PROJECT_ID >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
+        --project=$PROJECT_ID \
+        --display-name="GitHub Actions Service Account"
+else
+    echo "Service account $SERVICE_ACCOUNT already exists."
+fi
+
+# Step 3: Create Workload Identity Pool
 echo "Creating Workload Identity Pool..."
-gcloud iam workload-identity-pools create $POOL_ID \
-    --project=$PROJECT_ID \
-    --location="global" \
-    --display-name="GitHub Actions Pool"
+gcloud iam workload-identity-pools describe $POOL_ID --project=$PROJECT_ID --location="global" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    gcloud iam workload-identity-pools create $POOL_ID \
+        --project=$PROJECT_ID \
+        --location="global" \
+        --display-name="GitHub Actions Pool"
+else
+    echo "Workload Identity Pool $POOL_ID already exists."
+fi
 
-# Step 3: Create OIDC Provider for GitHub Actions
+# Step 4: Create OIDC Provider for GitHub Actions
 echo "Creating GitHub OIDC Provider..."
-gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID \
-    --project=$PROJECT_ID \
-    --location="global" \
-    --workload-identity-pool=$POOL_ID \
-    --display-name="GitHub Provider" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
-    --issuer-uri="https://token.actions.githubusercontent.com"
+gcloud iam workload-identity-pools providers describe $PROVIDER_ID --project=$PROJECT_ID --location="global" --workload-identity-pool=$POOL_ID >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID \
+        --project=$PROJECT_ID \
+        --location="global" \
+        --workload-identity-pool=$POOL_ID \
+        --display-name="GitHub Provider" \
+        --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
+        --attribute-condition="assertion.repository == '$REPO'" \
+        --issuer-uri="https://token.actions.githubusercontent.com"
+else
+    echo "Workload Identity Pool Provider $PROVIDER_ID already exists."
+fi
 
-# Step 4: Allow the GitHub repo to impersonate the service account
+# Step 5: Allow the GitHub repo to impersonate the service account
 echo "Binding service account to GitHub repository..."
 gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT \
     --project=$PROJECT_ID \
     --role="roles/iam.workloadIdentityUser" \
-    --member="principalSet://iam.googleapis.com/projects/$PROJECT_ID/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/$REPO"
+    --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/$REPO"
 
-# Step 5: Verify the setup
+# Step 6: Verify the setup
 echo "Verifying Workload Identity Pool..."
 gcloud iam workload-identity-pools describe $POOL_ID \
     --project=$PROJECT_ID \
