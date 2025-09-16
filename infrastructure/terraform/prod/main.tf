@@ -176,7 +176,6 @@ resource "google_iam_workload_identity_pool_provider" "wif_provider" {
 }
 
 resource "google_service_account_iam_member" "wif_user" {
-  project              = var.gcp_project_id
   service_account_id = google_service_account.cicd_runner_sa.name
   role                 = "roles/iam.workloadIdentityUser"
   member               = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.wif_pool.name}/attribute.repository/${var.repository_owner}/${var.repository_name}"
