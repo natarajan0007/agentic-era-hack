@@ -24,8 +24,13 @@ backend:
 
 # Set up development environment resources using Terraform
 setup-dev-env:
-	PROJECT_ID=$$(gcloud config get-value project) && \
-	(cd deployment/terraform/dev && terraform init && terraform apply --var-file vars/env.tfvars --var dev_project_id=$$PROJECT_ID --auto-approve)
+	PROJECT_ID=$(gcloud config get-value project) && \
+	(cd deployment/terraform/dev && terraform init && terraform apply --var-file vars/env.tfvars --var dev_project_id=$PROJECT_ID --auto-approve)
+
+# Set up staging and production environment resources using Terraform
+setup-infra:
+	@echo "Setting up Staging and Production infrastructure..."
+	(cd deployment/terraform && terraform init && terraform apply --auto-approve)
 
 # Run unit and integration tests
 test:
@@ -35,6 +40,6 @@ test:
 lint:
 	uv sync --dev --extra lint
 	uv run codespell
-	uv run ruff check . --diff
-	uv run ruff format . --check --diff
-	uv run mypy .
+	ruf f check . --diff
+	ruf f format . --check --diff
+	mypy .
