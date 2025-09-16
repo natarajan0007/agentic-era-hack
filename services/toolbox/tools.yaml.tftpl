@@ -2,14 +2,14 @@
 # When deploying to Cloud Run, you MUST replace this with the actual IP address or DNS name of your PostgreSQL database.
 # It is also highly recommended to store the 'password' in Google Secret Manager and reference it here.
 
-# sources:
-#   my-pg-source:
-#     kind: postgres
-#     host: host.docker.internal
-#     port: 5433
-#     database: pdf_processing
-#     user: postgres
-#     password: password
+sources:
+  my-pg-source:
+    kind: postgres
+    host: "${db_host}"
+    port: 5433
+    database: "pdf_processing"
+    user: "postgres"
+    password_secret: "${db_password_secret_id}"
 
 tools:
   search-documents-by-filename:
