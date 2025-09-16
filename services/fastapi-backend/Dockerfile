@@ -4,13 +4,9 @@ FROM python:3.12-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Install uv, the package manager
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
-
-# Copy the dependency files and install dependencies
+# Install dependencies
 COPY pyproject.toml ./
-RUN uv sync --no-dev
+RUN pip install uv && uv sync --no-dev
 
 # Copy the rest of the application code
 COPY main.py ./
