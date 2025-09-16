@@ -9,7 +9,7 @@ resource "google_secret_manager_secret" "db_password_secret" {
   secret_id = "db-password"
 
   replication {
-    automatic = true
+    auto {}
   }
 }
 
