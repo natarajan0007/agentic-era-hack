@@ -116,7 +116,6 @@ jobs:
             --tag "$IMAGE_URL" \
             --project=${{ env.PROD_PROJECT_ID }} \
             --timeout=30m \
-            --machine-type=e2-highcpu-8 \
             --gcs-log-dir=gs://${{ env.PROD_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run
@@ -130,7 +129,7 @@ jobs:
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=${{ env.PROD_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }},GOOGLE_GENAI_USE_VERTEXAI=True" \
+            --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=${{ env.PROD_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }},GOOGLE_GENAI_USE_VERTEXAI=True,TOOLBOX_URL=https://toolbox-939854106735.europe-west1.run.app" \
             --memory=2Gi \
             --cpu=2 \
             --min-instances=1 \
@@ -252,7 +251,6 @@ jobs:
             --tag "$IMAGE_URL" \
             --project=${{ env.PROD_PROJECT_ID }} \
             --timeout=30m \
-            --machine-type=e2-highcpu-8 \
             --gcs-log-dir=gs://${{ env.PROD_PROJECT_ID }}-cloudbuild-logs/logs
             
       - name: Deploy to Cloud Run

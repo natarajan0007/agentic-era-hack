@@ -125,7 +125,20 @@ async def register(
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
-    return db_user
+
+    # Re-fetch the user with the department relationship eagerly loaded to prevent MissingGreenlet error
+    from sqlalchemy.future import select
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(UserModel)
+        .options(selectinload(UserModel.department))
+        .where(UserModel.id == db_user.id)
+    )
+    user_with_department = result.scalar_one()
+
+    # Manually construct the Pydantic User object to avoid lazy loading issues
+    return User.model_validate(user_with_department)
 
 
 @router.get("/me", response_model=User)
