@@ -1,0 +1,65 @@
+# FastAPI and core dependencies
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy
+psycopg2-binary
+alembic
+
+# Authentication and security
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Validation
+pydantic
+email-validator
+
+# AI and ML
+openai
+tiktoken
+
+# File handling
+python-magic
+Pillow
+
+# Caching and sessions
+redis
+python-redis
+
+# HTTP client
+httpx
+requests
+
+# Data processing
+pandas
+numpy
+
+# Utilities
+python-dotenv
+pytz
+python-dateutil
+
+# Development and testing
+pytest
+pytest-asyncio
+pytest-cov
+black
+flake8
+mypy
+
+# Monitoring and logging
+structlog
+sentry-sdk[fastapi]
+
+# WebSocket support
+websockets
+
+# Background tasks
+celery
+flower
+
+# Documentation
+mkdocs
+mkdocs-material
