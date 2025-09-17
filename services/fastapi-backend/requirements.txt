@@ -116,4 +116,4 @@ xmod==1.8.1
 google-generativeai
 asyncpg
 greenlet
-google-cloud-sql-connector
+cloud-sql-python-connector
