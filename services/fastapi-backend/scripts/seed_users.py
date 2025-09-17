@@ -3,7 +3,7 @@ import requests
 import json
 
 # --- Configuration ---
-BASE_URL = "http://localhost:8000/api/v1"
+BASE_URL = "http://localhost:9090/api/v1"
 REGISTER_URL = f"{BASE_URL}/auth/register"
 PASSWORD = "securepassword123"
 DEPARTMENT_ID = 1
