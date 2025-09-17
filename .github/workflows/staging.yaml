@@ -71,7 +71,7 @@ jobs:
             --project=${{ env.STAGING_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="TOOLBOX_URL=https://toolbox-1050008974311.europe-west1.run.app" \
+            --set-env-vars="TOOLBOX_URL=https://toolbox-1050008974311.europe-west1.run.app,GOOGLE_CLOUD_PROJECT=${{ env.STAGING_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }},GOOGLE_GENAI_USE_VERTEXAI=True" \
             --memory=1Gi \
             --cpu=1 \
             --max-instances=2 \

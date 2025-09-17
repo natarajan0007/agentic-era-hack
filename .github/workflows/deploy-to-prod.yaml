@@ -130,7 +130,7 @@ jobs:
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=production" \
+            --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=${{ env.PROD_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }},GOOGLE_GENAI_USE_VERTEXAI=True" \
             --memory=2Gi \
             --cpu=2 \
             --min-instances=1 \

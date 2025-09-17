@@ -80,6 +80,18 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       dynamic "env" {
+        for_each = each.key == "adk-agent" ? [
+          { name = "GOOGLE_CLOUD_PROJECT", value = var.gcp_project_id },
+          { name = "GOOGLE_CLOUD_LOCATION", value = var.gcp_region },
+          { name = "GOOGLE_GENAI_USE_VERTEXAI", value = "True" }
+        ] : []
+        content {
+          name  = env.value.name
+          value = env.value.value
+        }
+      }
+
+      dynamic "env" {
         for_each = each.key == "fastapi-backend" ? [
           { name = "ENVIRONMENT", value = "staging" },
           { name = "DB_HOST", value = google_sql_database_instance.postgres_instance.connection_name },
