@@ -198,7 +198,7 @@ jobs:
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=production" \
+            --set-env-vars="ENVIRONMENT=production,DB_NAME=intellica,DB_USER=postgres,DB_MODE=cloud_sql,DB_HOST=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance" \
             --memory=4Gi \
             --cpu=4 \
             --min-instances=2 \
