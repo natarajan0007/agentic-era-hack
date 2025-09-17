@@ -172,6 +172,13 @@ resource "google_project_iam_member" "toolbox_sql_client" {
   member  = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
 }
 
+# Grant the fastapi-backend service account access to Cloud SQL
+resource "google_project_iam_member" "fastapi_sql_client" {
+  project = var.gcp_project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.app_service_accounts["fastapi-backend"].email}"
+}
+
 # --- CICD Resources ---
 
 resource "google_service_account" "cicd_runner_sa" {
