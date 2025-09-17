@@ -62,7 +62,6 @@ async def setup_cloud_sql_database():
             password=settings.db_password,
             db=settings.db_name,
             port=settings.db_port,
-            ip_type="PRIVATE"
         )
     
     # Create async engine with Cloud SQL connector
