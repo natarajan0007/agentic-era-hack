@@ -132,7 +132,8 @@ resource "google_cloud_run_v2_service" "services" {
 
   depends_on = [
     google_project_service.apis,
-    google_secret_manager_secret_iam_member.db_password_accessor
+    google_secret_manager_secret_iam_member.db_password_accessor,
+    google_secret_manager_secret_iam_member.toolbox_config_accessor
   ]
 }
 
@@ -151,10 +152,15 @@ resource "google_cloud_run_service_iam_member" "public_access" {
 resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
   for_each = toset(["fastapi-backend", "toolbox"])
   
-  project   = var.gcp_project_id
+  project   = google_secret_manager_secret.db_password_secret.project
   secret_id = google_secret_manager_secret.db_password_secret.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.app_service_accounts[each.key].email}"
+  
+  depends_on = [
+    google_secret_manager_secret.db_password_secret,
+    google_service_account.app_service_accounts
+  ]
 }
 
 # Grant the toolbox service account access to the toolbox config secret
@@ -163,6 +169,11 @@ resource "google_secret_manager_secret_iam_member" "toolbox_config_accessor" {
   secret_id = google_secret_manager_secret.toolbox_config_secret.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.app_service_accounts["toolbox"].email}"
+  
+  depends_on = [
+    google_secret_manager_secret.toolbox_config_secret,
+    google_service_account.app_service_accounts
+  ]
 }
 
 # Grant the toolbox service account access to Cloud SQL
