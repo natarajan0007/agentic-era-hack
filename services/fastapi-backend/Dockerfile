@@ -7,12 +7,25 @@ WORKDIR /app
 # Install uv
 RUN pip install uv
 
-# Copy requirements and install dependencies
+# Create a virtual environment and add it to the PATH
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements and install dependencies into the venv
 COPY requirements.txt ./
 RUN uv pip install -r requirements.txt --no-cache-dir
 
+# Create a non-root user and group
+RUN groupadd --system appuser && useradd --system --gid appuser appuser
+
 # Copy the rest of the application code
 COPY . .
+
+# Change ownership of the app directory
+RUN chown -R appuser:appuser /app
+
+# Switch to the non-root user
+USER appuser
 
 # The port the app runs on
 EXPOSE 8080
