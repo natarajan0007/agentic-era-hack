@@ -113,7 +113,7 @@ class AIService:
     async def generate_chat_response(self, user_message: str, chat_history: List[Dict[str, Any]], user_role: str, ticket_id: Optional[str] = None, db: Optional[Session] = None) -> str:
         system_prompt = self._get_system_prompt_by_role(user_role)
         if ticket_id and db:
-            ticket_context = self._get_ticket_context(ticket_id, db)
+            ticket_context = await self._get_ticket_context(ticket_id, db)
             system_prompt += f"\n\nTicket Context: {ticket_context}"
         
         messages = [{"role": "system", "content": system_prompt}]
@@ -125,15 +125,16 @@ class AIService:
         return await self.provider.generate_chat_response(messages)
 
     async def analyze_ticket(self, ticket_id: str, db: Session) -> Dict[str, Any]:
-        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        ticket_query = await db.execute(Ticket.__table__.select().where(Ticket.id == ticket_id))
+        ticket = ticket_query.first()
         if not ticket:
             return {"error": "Ticket not found"}
         
         resolution_suggestions = await self.provider.generate_resolution_suggestions(ticket)
         
         return {
-            "similar_tickets": self._find_similar_tickets(ticket, db),
-            "relevant_articles": self._find_relevant_knowledge(ticket, db),
+            "similar_tickets": await self._find_similar_tickets(ticket, db),
+            "relevant_articles": await self._find_relevant_knowledge(ticket, db),
             "resolution_suggestions": resolution_suggestions,
             "estimated_resolution_time": self._estimate_resolution_time(ticket),
             "escalation_recommendation": self._should_escalate(ticket)
@@ -149,13 +150,14 @@ class AIService:
         }
         return prompts.get(user_role, "You are a helpful IT support assistant.")
 
-    def _get_ticket_context(self, ticket_id: str, db: Session) -> str:
-        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    async def _get_ticket_context(self, ticket_id: str, db: Session) -> str:
+        ticket_query = await db.execute(Ticket.__table__.select().where(Ticket.id == ticket_id))
+        ticket = ticket_query.first()
         if not ticket: return "No ticket information available."
         context = f"Ticket ID: {ticket.id}\nTitle: {ticket.title}\nDescription: {ticket.description}\nStatus: {ticket.status}\nPriority: {ticket.priority}"
         return context
 
-    def _find_similar_tickets(self, ticket: Ticket, db: Session) -> List[Dict[str, Any]]:
+    async def _find_similar_tickets(self, ticket: Ticket, db: Session) -> List[Dict[str, Any]]:
         # This is a placeholder for a real vector search implementation
         return []
 
@@ -164,7 +166,7 @@ class AIService:
         stopwords = {"the", "a", "an", "in", "on", "is", "are", "and"}
         return [w for w in words if w not in stopwords and len(w) > 3]
 
-    def _find_relevant_knowledge(self, ticket: Ticket, db: Session) -> List[Dict[str, Any]]:
+    async def _find_relevant_knowledge(self, ticket: Ticket, db: Session) -> List[Dict[str, Any]]:
         # This is a placeholder for a real vector search implementation
         return []
 

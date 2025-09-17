@@ -1,3 +1,5 @@
+'use client';
+
 import {
   BarChart,
   Bar,
@@ -54,7 +56,7 @@ const ReportsPage = () => {
         </div>
 
         {/* Pie Chart */}
-        <div className="bg-white shadow-md rounded-md p-4">
+        {/* <div className="bg-white shadow-md rounded-md p-4">
           <h2 className="text-lg font-semibold mb-2">Product Categories</h2>
           <ResponsiveContainer width="100%" height={300}>
             <RechartsPieChart>
@@ -66,7 +68,7 @@ const ReportsPage = () => {
               <Tooltip />
             </RechartsPieChart>
           </ResponsiveContainer>
-        </div>
+        </div> */}
 
         {/* Line Chart */}
         <div className="bg-white shadow-md rounded-md p-4">

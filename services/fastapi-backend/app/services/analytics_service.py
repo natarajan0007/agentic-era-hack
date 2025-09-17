@@ -17,7 +17,7 @@ class AnalyticsService:
     def __init__(self, db: Session):
         self.db = db
     
-    def get_ticket_analytics(self, 
+    async def get_ticket_analytics(self, 
                            start_date: Optional[datetime] = None,
                            end_date: Optional[datetime] = None,
                            department_id: Optional[int] = None) -> Dict[str, Any]:
@@ -30,7 +30,7 @@ class AnalyticsService:
             end_date = datetime.utcnow()
         
         # Base query
-        query = self.db.query(Ticket).filter(
+        query = Ticket.__table__.select().where(
             and_(
                 Ticket.created_at >= start_date,
                 Ticket.created_at <= end_date
@@ -38,9 +38,10 @@ class AnalyticsService:
         )
         
         if department_id:
-            query = query.filter(Ticket.department_id == department_id)
+            query = query.where(Ticket.department_id == department_id)
         
-        tickets = query.all()
+        tickets_query = await self.db.execute(query)
+        tickets = tickets_query.fetchall()
         
         # Basic metrics
         total_tickets = len(tickets)
@@ -84,7 +85,7 @@ class AnalyticsService:
         sla_compliance_rate = (sla_compliant / len(resolved_with_time) * 100) if resolved_with_time else 100
         
         # Daily trends
-        daily_trends = self._get_daily_ticket_trends(start_date, end_date, department_id)
+        daily_trends = await self._get_daily_ticket_trends(start_date, end_date, department_id)
         
         return {
             "summary": {
@@ -106,7 +107,7 @@ class AnalyticsService:
             "daily_trends": daily_trends
         }
     
-    def _get_daily_ticket_trends(self, 
+    async def _get_daily_ticket_trends(self, 
                                 start_date: datetime, 
                                 end_date: datetime,
                                 department_id: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -121,14 +122,14 @@ class AnalyticsService:
             next_date = current_date + timedelta(days=1)
             
             # Query for tickets created on this date
-            created_query = self.db.query(Ticket).filter(
+            created_query = Ticket.__table__.select().where(
                 and_(
                     func.date(Ticket.created_at) == current_date
                 )
             )
             
             # Query for tickets resolved on this date
-            resolved_query = self.db.query(Ticket).filter(
+            resolved_query = Ticket.__table__.select().where(
                 and_(
                     func.date(Ticket.resolved_at) == current_date,
                     Ticket.status == TicketStatus.RESOLVED
@@ -136,11 +137,13 @@ class AnalyticsService:
             )
             
             if department_id:
-                created_query = created_query.filter(Ticket.department_id == department_id)
-                resolved_query = resolved_query.filter(Ticket.department_id == department_id)
+                created_query = created_query.where(Ticket.department_id == department_id)
+                resolved_query = resolved_query.where(Ticket.department_id == department_id)
             
-            created_count = created_query.count()
-            resolved_count = resolved_query.count()
+            created_count_query = await self.db.execute(created_query)
+            created_count = len(created_count_query.fetchall())
+            resolved_count_query = await self.db.execute(resolved_query)
+            resolved_count = len(resolved_count_query.fetchall())
             
             trends.append({
                 "date": current_date.isoformat(),
@@ -152,7 +155,7 @@ class AnalyticsService:
         
         return trends
     
-    def get_team_performance(self, 
+    async def get_team_performance(self, 
                            start_date: Optional[datetime] = None,
                            end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """
@@ -164,20 +167,22 @@ class AnalyticsService:
             end_date = datetime.utcnow()
         
         # Get all engineers
-        engineers = self.db.query(User).filter(
+        engineers_query = await self.db.execute(User.__table__.select().where(
             User.role.in_([UserRole.L1_ENGINEER, UserRole.L2_ENGINEER])
-        ).all()
+        ))
+        engineers = engineers_query.fetchall()
         
         team_stats = []
         for engineer in engineers:
             # Get tickets assigned to this engineer
-            assigned_tickets = self.db.query(Ticket).filter(
+            assigned_tickets_query = await self.db.execute(Ticket.__table__.select().where(
                 and_(
                     Ticket.assigned_to_id == engineer.id,
                     Ticket.created_at >= start_date,
                     Ticket.created_at <= end_date
                 )
-            ).all()
+            ))
+            assigned_tickets = assigned_tickets_query.fetchall()
             
             # Get resolved tickets
             resolved_tickets = [t for t in assigned_tickets if t.status == TicketStatus.RESOLVED]
@@ -205,12 +210,13 @@ class AnalyticsService:
             sla_compliance = (sla_compliant / len(resolved_tickets) * 100) if resolved_tickets else 100
             
             # Current workload (open + in progress tickets)
-            current_workload = self.db.query(Ticket).filter(
+            current_workload_query = await self.db.execute(Ticket.__table__.select().where(
                 and_(
                     Ticket.assigned_to_id == engineer.id,
                     Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS])
                 )
-            ).count()
+            ))
+            current_workload = len(current_workload_query.fetchall())
             
             team_stats.append({
                 "engineer_id": engineer.id,
@@ -247,7 +253,7 @@ class AnalyticsService:
             }
         }
     
-    def get_sla_metrics(self, 
+    async def get_sla_metrics(self, 
                        start_date: Optional[datetime] = None,
                        end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """
@@ -259,13 +265,14 @@ class AnalyticsService:
             end_date = datetime.utcnow()
         
         # Get resolved tickets in date range
-        resolved_tickets = self.db.query(Ticket).filter(
+        resolved_tickets_query = await self.db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.status == TicketStatus.RESOLVED,
                 Ticket.resolved_at >= start_date,
                 Ticket.resolved_at <= end_date
             )
-        ).all()
+        ))
+        resolved_tickets = resolved_tickets_query.fetchall()
         
         if not resolved_tickets:
             return {
@@ -320,12 +327,13 @@ class AnalyticsService:
         ]
         
         # At-risk tickets (currently open/in-progress, approaching SLA)
-        at_risk_tickets = self.db.query(Ticket).filter(
+        at_risk_tickets_query = await self.db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS]),
                 Ticket.sla_deadline <= datetime.utcnow() + timedelta(hours=4)  # Within 4 hours of SLA
             )
-        ).all()
+        ))
+        at_risk_tickets = at_risk_tickets_query.fetchall()
         
         at_risk_list = [
             {
@@ -346,7 +354,7 @@ class AnalyticsService:
             "at_risk_tickets": at_risk_list
         }
     
-    def log_event(self, event_type: str, user_id: Optional[int] = None, 
+    async def log_event(self, event_type: str, user_id: Optional[int] = None, 
                   ticket_id: Optional[str] = None, properties: Optional[Dict[str, Any]] = None):
         """
         Log an analytics event
@@ -359,24 +367,25 @@ class AnalyticsService:
                 properties=properties
             )
             self.db.add(event)
-            self.db.commit()
+            await self.db.commit()
         except Exception as e:
             logger.error(f"Error logging analytics event: {str(e)}")
-            self.db.rollback()
+            await self.db.rollback()
     
-    def get_user_activity(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+    async def get_user_activity(self, user_id: int, days: int = 30) -> Dict[str, Any]:
         """
         Get user activity analytics
         """
         start_date = datetime.utcnow() - timedelta(days=days)
         
         # Get user events
-        events = self.db.query(AnalyticsEvent).filter(
+        events_query = await self.db.execute(AnalyticsEvent.__table__.select().where(
             and_(
                 AnalyticsEvent.user_id == user_id,
                 AnalyticsEvent.timestamp >= start_date
             )
-        ).all()
+        ))
+        events = events_query.fetchall()
         
         # Group events by type
         event_counts = {}
@@ -384,12 +393,13 @@ class AnalyticsService:
             event_counts[event.event_type] = event_counts.get(event.event_type, 0) + 1
         
         # Get user's tickets
-        user_tickets = self.db.query(Ticket).filter(
+        user_tickets_query = await self.db.execute(Ticket.__table__.select().where(
             or_(
                 Ticket.reported_by_id == user_id,
                 Ticket.assigned_to_id == user_id
             )
-        ).filter(Ticket.created_at >= start_date).all()
+        ).where(Ticket.created_at >= start_date))
+        user_tickets = user_tickets_query.fetchall()
         
         reported_tickets = len([t for t in user_tickets if t.reported_by_id == user_id])
         assigned_tickets = len([t for t in user_tickets if t.assigned_to_id == user_id])

@@ -14,7 +14,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/", response_model=UserList)
-def get_users(
+async def get_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     role: Optional[str] = None,
@@ -26,17 +26,19 @@ def get_users(
     """
     Get list of users with filtering and pagination
     """
-    query = db.query(UserModel)
+    query = UserModel.__table__.select()
     
     if role:
-        query = query.filter(UserModel.role == role)
+        query = query.where(UserModel.role == role)
     if department_id:
-        query = query.filter(UserModel.department_id == department_id)
+        query = query.where(UserModel.department_id == department_id)
     if is_active is not None:
-        query = query.filter(UserModel.is_active == is_active)
+        query = query.where(UserModel.is_active == is_active)
     
-    total = query.count()
-    users = query.offset(skip).limit(limit).all()
+    total_query = await db.execute(query)
+    total = len(total_query.fetchall())
+    users_query = await db.execute(query.offset(skip).limit(limit))
+    users = users_query.fetchall()
     
     return {
         "users": users,
@@ -47,7 +49,7 @@ def get_users(
 
 
 @router.get("/{user_id}", response_model=User)
-def get_user(
+async def get_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
@@ -62,7 +64,8 @@ def get_user(
             detail="Not enough permissions"
         )
     
-    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    user_query = await db.execute(UserModel.__table__.select().where(UserModel.id == user_id))
+    user = user_query.first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -73,7 +76,7 @@ def get_user(
 
 
 @router.put("/{user_id}", response_model=User)
-def update_user(
+async def update_user(
     user_id: int,
     user_update: UserUpdate,
     db: Session = Depends(get_db),
@@ -89,7 +92,8 @@ def update_user(
             detail="Not enough permissions"
         )
     
-    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    user_query = await db.execute(UserModel.__table__.select().where(UserModel.id == user_id))
+    user = user_query.first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -98,16 +102,16 @@ def update_user(
     
     # Update user fields
     update_data = user_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(user, field, value)
+    await db.execute(UserModel.__table__.update().where(UserModel.id == user_id).values(**update_data))
     
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    user_query = await db.execute(UserModel.__table__.select().where(UserModel.id == user_id))
+    user = user_query.first()
     return user
 
 
 @router.get("/{user_id}/stats", response_model=UserWithStats)
-def get_user_stats(
+async def get_user_stats(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_manager)
@@ -115,7 +119,8 @@ def get_user_stats(
     """
     Get user performance statistics
     """
-    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    user_query = await db.execute(UserModel.__table__.select().where(UserModel.id == user_id))
+    user = user_query.first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -125,11 +130,13 @@ def get_user_stats(
     # Calculate stats (simplified - in production use proper analytics)
     from app.models.ticket import Ticket, TicketStatus
     
-    assigned_tickets = db.query(Ticket).filter(Ticket.assigned_to_id == user_id).count()
-    resolved_tickets = db.query(Ticket).filter(
+    assigned_tickets_query = await db.execute(Ticket.__table__.select().where(Ticket.assigned_to_id == user_id))
+    assigned_tickets = len(assigned_tickets_query.fetchall())
+    resolved_tickets_query = await db.execute(Ticket.__table__.select().where(
         Ticket.assigned_to_id == user_id,
         Ticket.status == TicketStatus.RESOLVED
-    ).count()
+    ))
+    resolved_tickets = len(resolved_tickets_query.fetchall())
     
     # Convert user to dict and add stats
     user_dict = {
@@ -144,19 +151,20 @@ def get_user_stats(
 
 
 @router.get("/departments/", response_model=List[DepartmentSchema])
-def get_departments(
+async def get_departments(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
     """
     Get list of departments
     """
-    departments = db.query(DepartmentModel).all()
+    departments_query = await db.execute(DepartmentModel.__table__.select())
+    departments = departments_query.fetchall()
     return departments
 
 
 @router.post("/departments/", response_model=DepartmentSchema, status_code=status.HTTP_201_CREATED)
-def create_department(
+async def create_department(
     department_in: DepartmentBase,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_admin)
@@ -164,7 +172,8 @@ def create_department(
     """
     Create a new department. Only accessible by admin users.
     """
-    existing_department = db.query(DepartmentModel).filter(DepartmentModel.name == department_in.name).first()
+    existing_department_query = await db.execute(DepartmentModel.__table__.select().where(DepartmentModel.name == department_in.name))
+    existing_department = existing_department_query.first()
     if existing_department:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -172,6 +181,6 @@ def create_department(
         )
     db_department = DepartmentModel(**department_in.dict())
     db.add(db_department)
-    db.commit()
-    db.refresh(db_department)
+    await db.commit()
+    await db.refresh(db_department)
     return db_department

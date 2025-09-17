@@ -23,8 +23,9 @@ oauth2_scheme = OAuth2PasswordBearer(
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
+
 @router.post("/login", response_model=Token)
-def login(
+async def login(
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
@@ -32,7 +33,12 @@ def login(
     OAuth2 compatible token login, get an access token for future requests
     """
     logging.info(f"Attempting login for user: {form_data.username}")
-    user = db.query(UserModel).filter(UserModel.email == form_data.username).first()
+    user_query = await db.execute(UserModel.__table__.select().where(UserModel.email == form_data.username))
+    user = user_query.first()
+    if user:
+        print(f"User found: {user.email}")
+        print(f"Hashed password from DB: {user.hashed_password}")
+        print(f"Type of hashed password: {type(user.hashed_password)}")
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,8 +52,21 @@ def login(
         )
     
     # Update last login
-    user.last_login = datetime.utcnow()
-    db.commit()
+    await db.execute(UserModel.__table__.update().where(UserModel.id == user.id).values(last_login=datetime.utcnow()))
+    await db.commit()
+    
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(
+        data={"sub": str(user.id), "role": user.role.value},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
+    await db.commit()
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
@@ -63,7 +82,7 @@ def login(
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
-def register(
+async def register(
     *,
     db: Session = Depends(get_db),
     user_in: UserCreate
@@ -72,7 +91,8 @@ def register(
     Register a new user.
     """
     # Check if user with this email already exists
-    user = db.query(UserModel).filter(UserModel.email == user_in.email).first()
+    user = await db.execute(UserModel.__table__.select().where(UserModel.email == user_in.email))
+    user = user.first()
     if user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -83,7 +103,8 @@ def register(
     department_id = user_in.department_id
     if department_id is not None:
         from app.models.user import Department
-        department = db.query(Department).filter(Department.id == department_id).first()
+        department = await db.execute(Department.__table__.select().where(Department.id == department_id))
+        department = department.first()
         if not department:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -102,13 +123,13 @@ def register(
         manager_id=user_in.manager_id
     )
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
     return db_user
 
 
 @router.get("/me", response_model=User)
-def read_users_me(current_user: UserModel = Depends(get_current_user)):
+async def read_users_me(current_user: UserModel = Depends(get_current_user)):
     """
     Get current user information
     """
@@ -116,7 +137,7 @@ def read_users_me(current_user: UserModel = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh_token(current_user: UserModel = Depends(get_current_user)):
+async def refresh_token(current_user: UserModel = Depends(get_current_user)):
     """
     Refresh access token
     """
@@ -134,7 +155,7 @@ def refresh_token(current_user: UserModel = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout(current_user: UserModel = Depends(get_current_user)):
+async def logout(current_user: UserModel = Depends(get_current_user)):
     """
     Logout user (client should discard token)
     """

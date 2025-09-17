@@ -76,14 +76,14 @@ async def get_articles(
     current_user: User = Depends(get_current_user)
 ):
     """Get knowledge articles with filtering and search"""
-    query = db.query(KnowledgeArticle)
+    query = KnowledgeArticle.__table__.select()
     
     # Your existing filters...
     if category_id:
-        query = query.filter(KnowledgeArticle.category_id == category_id)
+        query = query.where(KnowledgeArticle.category_id == category_id)
     
     if status:
-        query = query.filter(KnowledgeArticle.status == status)
+        query = query.where(KnowledgeArticle.status == status)
     
     if search:
         search_filter = or_(
@@ -91,26 +91,19 @@ async def get_articles(
             KnowledgeArticle.content.ilike(f"%{search}%"),
             KnowledgeArticle.summary.ilike(f"%{search}%")
         )
-        query = query.filter(search_filter)
+        query = query.where(search_filter)
     
     if tags:
-        query = query.join(ArticleTag).join(KnowledgeTag).filter(
+        query = query.join(ArticleTag, ArticleTag.article_id == KnowledgeArticle.id).join(KnowledgeTag, KnowledgeTag.id == ArticleTag.tag_id).where(
             KnowledgeTag.name.in_(tags)
         )
     
     if current_user.role == "end_user":
-        query = query.filter(KnowledgeArticle.status == "published")
+        query = query.where(KnowledgeArticle.status == "published")
     
     # Add eager loading and get results
-    articles = query.options(
-        joinedload(KnowledgeArticle.author),
-        joinedload(KnowledgeArticle.category),
-        joinedload(KnowledgeArticle.tags).joinedload(ArticleTag.tag)
-    ).offset(skip).limit(limit).all()
-    articles = []
-    for article in articles:
-        articles.append(article.title)
-    print(articles)
+    articles_query = await db.execute(query.offset(skip).limit(limit))
+    articles = articles_query.fetchall()
     
     return [
     {
@@ -170,9 +163,10 @@ async def get_article(
     current_user: User = Depends(get_current_user)
 ):
     """Get a specific knowledge article"""
-    article = db.query(KnowledgeArticle).filter(
+    article_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.id == article_id
-    ).first()
+    ))
+    article = article_query.first()
     
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
@@ -182,8 +176,8 @@ async def get_article(
         raise HTTPException(status_code=403, detail="Access denied")
     
     # Increment view count
-    article.view_count += 1
-    db.commit()
+    await db.execute(KnowledgeArticle.__table__.update().where(KnowledgeArticle.id == article_id).values(view_count=article.view_count + 1))
+    await db.commit()
     
     return article
 
@@ -196,9 +190,10 @@ async def create_article(
     """Create a new knowledge article"""
     
     # Check if category exists
-    category = db.query(KnowledgeCategory).filter(
+    category_query = await db.execute(KnowledgeCategory.__table__.select().where(
         KnowledgeCategory.id == article.category_id
-    ).first()
+    ))
+    category = category_query.first()
     if not category:
         raise HTTPException(status_code=400, detail="Invalid category")
     
@@ -216,21 +211,22 @@ async def create_article(
     )
     
     db.add(db_article)
-    db.commit()
-    db.refresh(db_article)
+    await db.commit()
+    await db.refresh(db_article)
     
     # Add tags if provided
     if article.tags:
         for tag_name in article.tags:
             # Get or create tag
-            tag = db.query(KnowledgeTag).filter(
+            tag_query = await db.execute(KnowledgeTag.__table__.select().where(
                 KnowledgeTag.name == tag_name
-            ).first()
+            ))
+            tag = tag_query.first()
             if not tag:
                 tag = KnowledgeTag(name=tag_name)
                 db.add(tag)
-                db.commit()
-                db.refresh(tag)
+                await db.commit()
+                await db.refresh(tag)
             
             # Create article-tag relationship
             article_tag = ArticleTag(
@@ -239,7 +235,7 @@ async def create_article(
             )
             db.add(article_tag)
     
-    db.commit()
+    await db.commit()
     return db_article
 
 @router.put("/articles/{article_id}", response_model=KnowledgeArticleResponse)
@@ -251,9 +247,10 @@ async def update_article(
 ):
     """Update a knowledge article"""
     
-    db_article = db.query(KnowledgeArticle).filter(
+    db_article_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.id == article_id
-    ).first()
+    ))
+    db_article = db_article_query.first()
     
     if not db_article:
         raise HTTPException(status_code=404, detail="Article not found")
@@ -267,25 +264,26 @@ async def update_article(
     update_data = article_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         if field != "tags":
-            setattr(db_article, field, value)
+            await db.execute(KnowledgeArticle.__table__.update().where(KnowledgeArticle.id == article_id).values(**{field: value}))
     
     # Update tags if provided
     if "tags" in update_data:
         # Remove existing tags
-        db.query(ArticleTag).filter(
+        await db.execute(ArticleTag.__table__.delete().where(
             ArticleTag.article_id == article_id
-        ).delete()
+        ))
         
         # Add new tags
         for tag_name in update_data["tags"]:
-            tag = db.query(KnowledgeTag).filter(
+            tag_query = await db.execute(KnowledgeTag.__table__.select().where(
                 KnowledgeTag.name == tag_name
-            ).first()
+            ))
+            tag = tag_query.first()
             if not tag:
                 tag = KnowledgeTag(name=tag_name)
                 db.add(tag)
-                db.commit()
-                db.refresh(tag)
+                await db.commit()
+                await db.refresh(tag)
             
             article_tag = ArticleTag(
                 article_id=article_id,
@@ -293,8 +291,11 @@ async def update_article(
             )
             db.add(article_tag)
     
-    db.commit()
-    db.refresh(db_article)
+    await db.commit()
+    db_article_query = await db.execute(KnowledgeArticle.__table__.select().where(
+        KnowledgeArticle.id == article_id
+    ))
+    db_article = db_article_query.first()
     return db_article
 
 @router.delete("/articles/{article_id}")
@@ -305,19 +306,20 @@ async def delete_article(
 ):
     """Delete a knowledge article"""
     
-    article = db.query(KnowledgeArticle).filter(
+    article_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.id == article_id
-    ).first()
+    ))
+    article = article_query.first()
     
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     
     # Remove tags first
-    db.query(ArticleTag).filter(ArticleTag.article_id == article_id).delete()
+    await db.execute(ArticleTag.__table__.delete().where(ArticleTag.article_id == article_id))
     
     # Delete article
-    db.delete(article)
-    db.commit()
+    await db.execute(KnowledgeArticle.__table__.delete().where(KnowledgeArticle.id == article_id))
+    await db.commit()
     
     return {"message": "Article deleted successfully"}
 
@@ -333,13 +335,13 @@ async def search_knowledge(
     """Advanced knowledge search with AI enhancement"""
     
     # Basic text search
-    query = db.query(KnowledgeArticle)
+    query = KnowledgeArticle.__table__.select()
     
     if current_user.role == "end_user":
-        query = query.filter(KnowledgeArticle.status == "published")
+        query = query.where(KnowledgeArticle.status == "published")
     
     if category_id:
-        query = query.filter(KnowledgeArticle.category_id == category_id)
+        query = query.where(KnowledgeArticle.category_id == category_id)
     
     # Text search
     search_filter = or_(
@@ -348,7 +350,8 @@ async def search_knowledge(
         KnowledgeArticle.summary.ilike(f"%{q}%")
     )
     
-    articles = query.filter(search_filter).limit(limit).all()
+    articles_query = await db.execute(query.where(search_filter).limit(limit))
+    articles = articles_query.fetchall()
     
     # AI-enhanced search suggestions
     try:
@@ -371,7 +374,8 @@ async def get_categories(
     current_user: User = Depends(get_current_user)
 ):
     """Get all knowledge categories"""
-    categories = db.query(KnowledgeCategory).all()
+    categories_query = await db.execute(KnowledgeCategory.__table__.select())
+    categories = categories_query.fetchall()
     return categories
 
 @router.post("/categories", response_model=KnowledgeCategoryResponse)
@@ -383,9 +387,10 @@ async def create_category(
     """Create a new knowledge category"""
     
     # Check if category already exists
-    existing = db.query(KnowledgeCategory).filter(
+    existing_query = await db.execute(KnowledgeCategory.__table__.select().where(
         KnowledgeCategory.name == category.name
-    ).first()
+    ))
+    existing = existing_query.first()
     
     if existing:
         raise HTTPException(status_code=400, detail="Category already exists")
@@ -397,8 +402,8 @@ async def create_category(
     )
     
     db.add(db_category)
-    db.commit()
-    db.refresh(db_category)
+    await db.commit()
+    await db.refresh(db_category)
     
     return db_category
 
@@ -408,7 +413,8 @@ async def get_tags(
     current_user: User = Depends(get_current_user)
 ):
     """Get all knowledge tags"""
-    tags = db.query(KnowledgeTag).all()
+    tags_query = await db.execute(KnowledgeTag.__table__.select())
+    tags = tags_query.fetchall()
     return tags
 
 @router.post("/articles/{article_id}/rate")
@@ -420,23 +426,25 @@ async def rate_article(
 ):
     """Rate a knowledge article"""
     
-    article = db.query(KnowledgeArticle).filter(
+    article_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.id == article_id
-    ).first()
+    ))
+    article = article_query.first()
     
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     
     # Update rating (simplified - in production, you'd track individual ratings)
     if article.rating_count == 0:
-        article.average_rating = rating
-        article.rating_count = 1
+        new_rating = rating
+        new_rating_count = 1
     else:
         total_rating = article.average_rating * article.rating_count
-        article.rating_count += 1
-        article.average_rating = (total_rating + rating) / article.rating_count
+        new_rating_count = article.rating_count + 1
+        new_rating = (total_rating + rating) / new_rating_count
     
-    db.commit()
+    await db.execute(KnowledgeArticle.__table__.update().where(KnowledgeArticle.id == article_id).values(average_rating=new_rating, rating_count=new_rating_count))
+    await db.commit()
     
     return {"message": "Rating submitted successfully"}
 
@@ -450,9 +458,10 @@ async def upload_attachment(
 ):
     """Upload attachment to knowledge article"""
     
-    article = db.query(KnowledgeArticle).filter(
+    article_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.id == article_id
-    ).first()
+    ))
+    article = article_query.first()
     
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
@@ -469,17 +478,17 @@ async def upload_attachment(
         )
         
         # Update article attachments (assuming JSON field)
-        if not article.attachments:
-            article.attachments = []
+        attachments = article.attachments or []
         
-        article.attachments.append({
+        attachments.append({
             "filename": file.filename,
             "url": file_url,
             "uploaded_by": current_user.id,
             "uploaded_at": "now"  # Use proper datetime in production
         })
         
-        db.commit()
+        await db.execute(KnowledgeArticle.__table__.update().where(KnowledgeArticle.id == article_id).values(attachments=attachments))
+        await db.commit()
         
         return {"message": "File uploaded successfully", "url": file_url}
         
@@ -494,11 +503,12 @@ async def get_popular_articles(
 ):
     """Get most popular knowledge articles"""
     
-    articles = db.query(KnowledgeArticle).filter(
+    articles_query = await db.execute(KnowledgeArticle.__table__.select().where(
         KnowledgeArticle.status == "published"
     ).order_by(
         KnowledgeArticle.view_count.desc()
-    ).limit(limit).all()
+    ).limit(limit))
+    articles = articles_query.fetchall()
     
     return {
         "popular_articles": [

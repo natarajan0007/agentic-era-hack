@@ -28,7 +28,8 @@ async def get_current_user(
             detail="Could not validate credentials"
         )
     
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user_query = await db.execute(User.__table__.select().where(User.id == int(user_id)))
+    user = user_query.first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -48,7 +49,7 @@ def require_roles(allowed_roles: list):
     """
     Dependency factory for role-based access control
     """
-    def role_checker(current_user: User = Depends(get_current_user)):
+    async def role_checker(current_user: User = Depends(get_current_user)):
         if not check_permissions(current_user.role.value, allowed_roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

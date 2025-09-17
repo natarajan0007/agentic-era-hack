@@ -1,0 +1,5 @@
+google-adk
+google-generativeai
+toolbox-core
+uvicorn
+fastapi

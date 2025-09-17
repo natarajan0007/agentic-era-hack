@@ -19,7 +19,7 @@ websocket_manager = WebSocketManager()
 
 
 @router.post("/", response_model=ChatMessage, status_code=status.HTTP_201_CREATED)
-def send_message(
+async def send_message(
     message_in: ChatMessageCreate,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
@@ -28,7 +28,8 @@ def send_message(
     Send a chat message
     """
     # Verify ticket exists and user has access
-    ticket = db.query(TicketModel).filter(TicketModel.id == message_in.ticket_id).first()
+    ticket = await db.execute(TicketModel.__table__.select().where(TicketModel.id == message_in.ticket_id))
+    ticket = ticket.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -59,11 +60,11 @@ def send_message(
     )
     
     db.add(db_message)
-    db.commit()
-    db.refresh(db_message)
+    await db.commit()
+    await db.refresh(db_message)
     
     # Broadcast to WebSocket connections
-    websocket_manager.broadcast_to_ticket(
+    await websocket_manager.broadcast_to_ticket(
         message_in.ticket_id,
         {
             "type": "new_message",
@@ -81,7 +82,7 @@ def send_message(
 
 
 @router.get("/{ticket_id}/history", response_model=ChatHistory)
-def get_chat_history(
+async def get_chat_history(
     ticket_id: str,
     skip: int = 0,
     limit: int = 50,
@@ -93,7 +94,8 @@ def get_chat_history(
     Get chat history for a ticket
     """
     # Verify ticket exists and user has access
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,17 +116,20 @@ def get_chat_history(
         )
     
     # Build query
-    query = db.query(ChatMessageModel).filter(ChatMessageModel.ticket_id == ticket_id)
+    query = ChatMessageModel.__table__.select().where(ChatMessageModel.ticket_id == ticket_id)
     
     # Filter internal messages for end users
     if current_user.role.value == "end-user" or not include_internal:
-        query = query.filter(ChatMessageModel.is_internal == False)
+        query = query.where(ChatMessageModel.is_internal == False)
     
     # Order by creation time
     query = query.order_by(ChatMessageModel.created_at.desc())
     
-    total = query.count()
-    messages = query.offset(skip).limit(limit).all()
+    total_query = await db.execute(query)
+    total = len(total_query.fetchall())
+
+    messages_query = await db.execute(query.offset(skip).limit(limit))
+    messages = messages_query.fetchall()
     
     # Reverse to show oldest first
     messages.reverse()
@@ -146,7 +151,8 @@ async def chat_with_ai(
     Chat with AI assistant about a ticket
     """
     # Verify ticket exists and user has access
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -154,9 +160,10 @@ async def chat_with_ai(
         )
     
     # Get recent chat history for context
-    recent_messages = db.query(ChatMessageModel).filter(
+    recent_messages_query = await db.execute(ChatMessageModel.__table__.select().where(
         ChatMessageModel.ticket_id == ticket_id
-    ).order_by(ChatMessageModel.created_at.desc()).limit(10).all()
+    ).order_by(ChatMessageModel.created_at.desc()).limit(10))
+    recent_messages = recent_messages_query.fetchall()
     
     # Format chat history for AI
     chat_history = []
@@ -196,7 +203,7 @@ async def chat_with_ai(
     )
     db.add(ai_message)
     
-    db.commit()
+    await db.commit()
     
     return {
         "message": ai_response,
@@ -225,13 +232,15 @@ async def websocket_endpoint(
             await websocket.close(code=1008)
             return
         
-        user = db.query(UserModel).filter(UserModel.id == int(user_id)).first()
+        user_query = await db.execute(UserModel.__table__.select().where(UserModel.id == int(user_id)))
+        user = user_query.first()
         if not user:
             await websocket.close(code=1008)
             return
         
         # Verify ticket access
-        ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+        ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+        ticket = ticket_query.first()
         if not ticket:
             await websocket.close(code=1008)
             return
@@ -248,7 +257,7 @@ async def websocket_endpoint(
         
         # Accept connection and add to manager
         await websocket.accept()
-        websocket_manager.connect(websocket, ticket_id, user.id)
+        await websocket_manager.connect(websocket, ticket_id, user.id)
         
         try:
             while True:
@@ -266,11 +275,11 @@ async def websocket_endpoint(
                         message_type="text"
                     )
                     db.add(db_message)
-                    db.commit()
-                    db.refresh(db_message)
+                    await db.commit()
+                    await db.refresh(db_message)
                     
                     # Broadcast to other connections
-                    websocket_manager.broadcast_to_ticket(
+                    await websocket_manager.broadcast_to_ticket(
                         ticket_id,
                         {
                             "type": "new_message",

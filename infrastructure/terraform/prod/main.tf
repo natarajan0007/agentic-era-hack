@@ -80,7 +80,21 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       dynamic "env" {
-        for_each = each.key == "toolbox" ? [1] : []
+        for_each = each.key == "fastapi-backend" ? [
+          { name = "ENVIRONMENT", value = "prod" },
+          { name = "DB_HOST", value = google_sql_database_instance.postgres_instance.connection_name },
+          { name = "DB_NAME", value = "intellica" },
+          { name = "DB_USER", value = "postgres" },
+          { name = "DB_MODE", value = "cloud_sql" }
+        ] : []
+        content {
+          name  = env.value.name
+          value = env.value.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = (each.key == "fastapi-backend" || each.key == "toolbox") ? [1] : []
         content {
           name = "DB_PASSWORD"
           value_source {

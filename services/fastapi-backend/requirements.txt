@@ -113,3 +113,7 @@ watchfiles==1.0.5
 wcwidth==0.2.13
 websockets==15.0.1
 xmod==1.8.1
+google-generativeai
+asyncpg
+greenlet
+google-cloud-sql-connector

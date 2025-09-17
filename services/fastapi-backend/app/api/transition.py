@@ -15,7 +15,7 @@ router = APIRouter(prefix="/transition", tags=["transition"])
 
 
 @router.get("/projects")
-def get_transition_projects(
+async def get_transition_projects(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_manager)
 ):
@@ -68,7 +68,7 @@ def get_transition_projects(
 
 
 @router.get("/projects/{project_id}")
-def get_transition_project(
+async def get_transition_project(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_manager)
@@ -187,7 +187,7 @@ def get_transition_project(
 
 
 @router.get("/knowledge-artifacts")
-def get_knowledge_artifacts(
+async def get_knowledge_artifacts(
     project_id: Optional[int] = None,
     status: Optional[str] = None,
     artifact_type: Optional[str] = None,
@@ -198,23 +198,24 @@ def get_knowledge_artifacts(
     Get knowledge artifacts for transition management
     """
     # Get knowledge articles that are part of transition
-    query = db.query(KnowledgeArticleModel)
+    query = KnowledgeArticleModel.__table__.select()
     
     # Filter by status if provided
     if status:
         if status == "complete":
-            query = query.filter(KnowledgeArticleModel.status == ArticleStatus.PUBLISHED)
+            query = query.where(KnowledgeArticleModel.status == ArticleStatus.PUBLISHED)
         elif status == "in_progress":
-            query = query.filter(KnowledgeArticleModel.status.in_([ArticleStatus.DRAFT, ArticleStatus.REVIEW]))
+            query = query.where(KnowledgeArticleModel.status.in_([ArticleStatus.DRAFT, ArticleStatus.REVIEW]))
         elif status == "missing":
             # This would require a separate tracking system for required vs existing articles
             pass
     
     # Filter by type if provided
     if artifact_type:
-        query = query.filter(KnowledgeArticleModel.article_type == artifact_type)
+        query = query.where(KnowledgeArticleModel.article_type == artifact_type)
     
-    articles = query.all()
+    articles_query = await db.execute(query)
+    articles = articles_query.fetchall()
     
     # Transform to artifact format
     artifacts = []
@@ -268,7 +269,7 @@ def get_knowledge_artifacts(
 
 
 @router.get("/team-readiness")
-def get_team_readiness(
+async def get_team_readiness(
     project_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_manager)
@@ -277,9 +278,10 @@ def get_team_readiness(
     Get team readiness assessment for transition
     """
     # Get all engineers
-    engineers = db.query(UserModel).filter(
+    engineers_query = await db.execute(UserModel.__table__.select().where(
         UserModel.role.in_(["l1-engineer", "l2-engineer"])
-    ).all()
+    ))
+    engineers = engineers_query.fetchall()
     
     readiness_data = []
     for engineer in engineers:
@@ -336,7 +338,7 @@ def get_team_readiness(
 
 
 @router.post("/projects/{project_id}/update-progress")
-def update_project_progress(
+async def update_project_progress(
     project_id: int,
     phase: str,
     progress: int,
@@ -373,7 +375,7 @@ def update_project_progress(
 
 
 @router.get("/reports/transition-status")
-def get_transition_status_report(
+async def get_transition_status_report(
     project_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_manager)

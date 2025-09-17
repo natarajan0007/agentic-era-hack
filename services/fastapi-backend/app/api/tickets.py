@@ -91,19 +91,20 @@ async def create_ticket(
     )
     
     db.add(db_ticket)
-    db.commit()
-    db.refresh(db_ticket)
+    await db.commit()
+    await db.refresh(db_ticket)
     
     # Add tags if provided
     if tags:
         for tag_name in tags:
-            tag = db.query(Tag).filter(Tag.name == tag_name).first()
+            tag_query = await db.execute(Tag.__table__.select().where(Tag.name == tag_name))
+            tag = tag_query.first()
             if not tag:
                 tag = Tag(name=tag_name)
                 db.add(tag)
             db_ticket.tags.append(tag)
-        db.commit()
-        db.refresh(db_ticket)
+        await db.commit()
+        await db.refresh(db_ticket)
 
     # Handle file uploads if provided
     if files:
@@ -119,8 +120,8 @@ async def create_ticket(
                 uploaded_by_id=current_user.id
             )
             db.add(attachment)
-        db.commit()
-        db.refresh(db_ticket)
+        await db.commit()
+        await db.refresh(db_ticket)
 
     # Log activity
     activity = TicketActivity(
@@ -130,14 +131,14 @@ async def create_ticket(
         details={"message": "Ticket created"}
     )
     db.add(activity)
-    db.commit()
-    db.refresh(db_ticket) # Refresh again to load attachments into the response model
+    await db.commit()
+    await db.refresh(db_ticket) # Refresh again to load attachments into the response model
     
     return db_ticket
 
 
 @router.get("/", response_model=TicketList)
-def get_tickets(
+async def get_tickets(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     status: Optional[List[TicketStatus]] = Query(None),
@@ -152,26 +153,26 @@ def get_tickets(
     """
     Get tickets with filtering and pagination
     """
-    query = db.query(TicketModel)
+    query = TicketModel.__table__.select()
     
     # Apply filters based on user role
     if current_user.role.value == "end-user":
         # End users can only see their own tickets
-        query = query.filter(TicketModel.reported_by_id == current_user.id)
+        query = query.where(TicketModel.reported_by_id == current_user.id)
     elif assigned_to_me:
-        query = query.filter(TicketModel.assigned_to_id == current_user.id)
+        query = query.where(TicketModel.assigned_to_id == current_user.id)
     elif reported_by_me:
-        query = query.filter(TicketModel.reported_by_id == current_user.id)
+        query = query.where(TicketModel.reported_by_id == current_user.id)
     
     # Apply other filters
     if status:
-        query = query.filter(TicketModel.status.in_(status))
+        query = query.where(TicketModel.status.in_(status))
     if priority:
-        query = query.filter(TicketModel.priority.in_(priority))
+        query = query.where(TicketModel.priority.in_(priority))
     if category:
-        query = query.filter(TicketModel.category.in_(category))
+        query = query.where(TicketModel.category.in_(category))
     if search:
-        query = query.filter(
+        query = query.where(
             or_(
                 TicketModel.title.ilike(f"%{search}%"),
                 TicketModel.description.ilike(f"%{search}%"),
@@ -185,8 +186,10 @@ def get_tickets(
         TicketModel.created_at.desc()
     )
     
-    total = query.count()
-    tickets = query.offset(skip).limit(limit).all()
+    total_query = await db.execute(query)
+    total = len(total_query.fetchall())
+    tickets_query = await db.execute(query.offset(skip).limit(limit))
+    tickets = tickets_query.fetchall()
     
     return {
         "tickets": tickets,
@@ -197,7 +200,7 @@ def get_tickets(
 
 
 @router.get("/{ticket_id}", response_model=Ticket)
-def get_ticket(
+async def get_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
@@ -205,7 +208,8 @@ def get_ticket(
     """
     Get ticket by ID
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -224,7 +228,7 @@ def get_ticket(
 
 
 @router.put("/{ticket_id}", response_model=Ticket)
-def update_ticket(
+async def update_ticket(
     ticket_id: str,
     ticket_update: TicketUpdate,
     db: Session = Depends(get_db),
@@ -233,7 +237,8 @@ def update_ticket(
     """
     Update ticket
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -260,14 +265,15 @@ def update_ticket(
         old_value = getattr(ticket, field)
         if old_value != value:
             changes[field] = {"old": old_value, "new": value}
-            setattr(ticket, field, value)
+            await db.execute(TicketModel.__table__.update().where(TicketModel.id == ticket_id).values(**{field: value}))
     
     # Set resolved timestamp if status changed to resolved
     if ticket_update.status == TicketStatus.RESOLVED and ticket.status != TicketStatus.RESOLVED:
-        ticket.resolved_at = datetime.utcnow()
+        await db.execute(TicketModel.__table__.update().where(TicketModel.id == ticket_id).values(resolved_at=datetime.utcnow()))
     
-    db.commit()
-    db.refresh(ticket)
+    await db.commit()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     
     # Log activity if there were changes
     if changes:
@@ -278,7 +284,7 @@ def update_ticket(
             details={"changes": changes}
         )
         db.add(activity)
-        db.commit()
+        await db.commit()
     
     return ticket
 
@@ -294,7 +300,8 @@ async def upload_attachment(
     """
     Upload one or more attachments to an existing ticket.
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -326,8 +333,9 @@ async def upload_attachment(
         )
         db.add(attachment)
 
-    db.commit()
-    db.refresh(ticket)
+    await db.commit()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
 
     return ticket
 
@@ -336,7 +344,7 @@ async def upload_attachment(
 
 
 @router.post("/{ticket_id}/assign")
-def assign_ticket(
+async def assign_ticket(
     ticket_id: str,
     assignee_id: int,
     db: Session = Depends(get_db),
@@ -345,7 +353,8 @@ def assign_ticket(
     """
     Assign ticket to an engineer
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -353,7 +362,8 @@ def assign_ticket(
         )
     
     # Verify assignee exists and is an engineer
-    assignee = db.query(UserModel).filter(UserModel.id == assignee_id).first()
+    assignee_query = await db.execute(UserModel.__table__.select().where(UserModel.id == assignee_id))
+    assignee = assignee_query.first()
     if not assignee or assignee.role.value not in ["l1-engineer", "l2-engineer"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -361,10 +371,9 @@ def assign_ticket(
         )
     
     old_assignee_id = ticket.assigned_to_id
-    ticket.assigned_to_id = assignee_id
-    ticket.status = TicketStatus.IN_PROGRESS
+    await db.execute(TicketModel.__table__.update().where(TicketModel.id == ticket_id).values(assigned_to_id=assignee_id, status=TicketStatus.IN_PROGRESS))
     
-    db.commit()
+    await db.commit()
     
     # Log activity
     activity = TicketActivity(
@@ -378,13 +387,13 @@ def assign_ticket(
         }
     )
     db.add(activity)
-    db.commit()
+    await db.commit()
     
     return {"message": "Ticket assigned successfully"}
 
 
 @router.post("/{ticket_id}/escalate")
-def escalate_ticket(
+async def escalate_ticket(
     ticket_id: str,
     reason: str,
     db: Session = Depends(get_db),
@@ -393,19 +402,17 @@ def escalate_ticket(
     """
     Escalate ticket to L2 or management
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ticket not found"
         )
     
-    ticket.status = TicketStatus.ESCALATED
-    ticket.escalation_reason = reason
-    ticket.is_escalated = True
-    ticket.assigned_to_id = None  # Unassign to put back in queue
+    await db.execute(TicketModel.__table__.update().where(TicketModel.id == ticket_id).values(status=TicketStatus.ESCALATED, escalation_reason=reason, is_escalated=True, assigned_to_id=None))
     
-    db.commit()
+    await db.commit()
     
     # Log activity
     activity = TicketActivity(
@@ -415,33 +422,39 @@ def escalate_ticket(
         details={"reason": reason}
     )
     db.add(activity)
-    db.commit()
+    await db.commit()
     
     return {"message": "Ticket escalated successfully"}
 
 
 @router.get("/stats/overview", response_model=TicketStats)
-def get_ticket_stats(
+async def get_ticket_stats(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
     """
     Get ticket statistics overview
     """
-    query = db.query(TicketModel)
+    query = TicketModel.__table__.select()
     
     # Filter by user role
     if current_user.role.value == "end-user":
-        query = query.filter(TicketModel.reported_by_id == current_user.id)
+        query = query.where(TicketModel.reported_by_id == current_user.id)
     elif current_user.role.value in ["l1-engineer", "l2-engineer"]:
-        query = query.filter(TicketModel.assigned_to_id == current_user.id)
+        query = query.where(TicketModel.assigned_to_id == current_user.id)
     
-    total_tickets = query.count()
-    open_tickets = query.filter(TicketModel.status == TicketStatus.OPEN).count()
-    in_progress_tickets = query.filter(TicketModel.status == TicketStatus.IN_PROGRESS).count()
-    resolved_tickets = query.filter(TicketModel.status == TicketStatus.RESOLVED).count()
-    closed_tickets = query.filter(TicketModel.status == TicketStatus.CLOSED).count()
-    escalated_tickets = query.filter(TicketModel.status == TicketStatus.ESCALATED).count()
+    total_tickets_query = await db.execute(query)
+    total_tickets = len(total_tickets_query.fetchall())
+    open_tickets_query = await db.execute(query.where(TicketModel.status == TicketStatus.OPEN))
+    open_tickets = len(open_tickets_query.fetchall())
+    in_progress_tickets_query = await db.execute(query.where(TicketModel.status == TicketStatus.IN_PROGRESS))
+    in_progress_tickets = len(in_progress_tickets_query.fetchall())
+    resolved_tickets_query = await db.execute(query.where(TicketModel.status == TicketStatus.RESOLVED))
+    resolved_tickets = len(resolved_tickets_query.fetchall())
+    closed_tickets_query = await db.execute(query.where(TicketModel.status == TicketStatus.CLOSED))
+    closed_tickets = len(closed_tickets_query.fetchall())
+    escalated_tickets_query = await db.execute(query.where(TicketModel.status == TicketStatus.ESCALATED))
+    escalated_tickets = len(escalated_tickets_query.fetchall())
     
     return {
         "total_tickets": total_tickets,
@@ -464,7 +477,8 @@ async def analyze_ticket(
     """
     Get AI analysis for a ticket
     """
-    ticket = db.query(TicketModel).filter(TicketModel.id == ticket_id).first()
+    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
+    ticket = ticket_query.first()
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

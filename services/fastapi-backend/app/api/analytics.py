@@ -40,32 +40,36 @@ async def get_dashboard_metrics(
     start_date = end_date - timedelta(days=days)
     
     # Base metrics for all roles
-    total_tickets = db.query(Ticket).filter(
+    total_tickets_query = await db.execute(Ticket.__table__.select().where(
         Ticket.created_at >= start_date
-    ).count()
+    ))
+    total_tickets = len(total_tickets_query.fetchall())
     
-    resolved_tickets = db.query(Ticket).filter(
+    resolved_tickets_query = await db.execute(Ticket.__table__.select().where(
         and_(
             Ticket.created_at >= start_date,
             Ticket.status == "resolved"
         )
-    ).count()
+    ))
+    resolved_tickets = len(resolved_tickets_query.fetchall())
     
     # Role-specific metrics
     if current_user.role == "end_user":
-        my_tickets = db.query(Ticket).filter(
+        my_tickets_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.reporter_id == current_user.id,
                 Ticket.created_at >= start_date
             )
-        ).count()
+        ))
+        my_tickets = len(my_tickets_query.fetchall())
         
-        my_open_tickets = db.query(Ticket).filter(
+        my_open_tickets_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.reporter_id == current_user.id,
                 Ticket.status.in_(["open", "in_progress"])
             )
-        ).count()
+        ))
+        my_open_tickets = len(my_open_tickets_query.fetchall())
         
         return DashboardMetrics(
             total_tickets=my_tickets,
@@ -77,20 +81,22 @@ async def get_dashboard_metrics(
         )
     
     elif current_user.role in ["l1_engineer", "l2_engineer"]:
-        assigned_tickets = db.query(Ticket).filter(
+        assigned_tickets_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.assigned_to == current_user.id,
                 Ticket.created_at >= start_date
             )
-        ).count()
+        ))
+        assigned_tickets = len(assigned_tickets_query.fetchall())
         
-        my_resolved = db.query(Ticket).filter(
+        my_resolved_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.assigned_to == current_user.id,
                 Ticket.status == "resolved",
                 Ticket.created_at >= start_date
             )
-        ).count()
+        ))
+        my_resolved = len(my_resolved_query.fetchall())
         
         # Calculate average resolution time
         avg_resolution = await analytics_service.get_avg_resolution_time(
@@ -143,33 +149,36 @@ async def get_team_performance(
     start_date = end_date - timedelta(days=days)
     
     # Get team members
-    team_query = db.query(User).filter(
+    team_query = User.__table__.select().where(
         User.role.in_(["l1_engineer", "l2_engineer"])
     )
     
     if team_id:
-        team_query = team_query.filter(User.team_id == team_id)
+        team_query = team_query.where(User.team_id == team_id)
     
-    team_members = team_query.all()
+    team_members_query = await db.execute(team_query)
+    team_members = team_members_query.fetchall()
     
     performance_data = []
     
     for member in team_members:
         # Get member's ticket statistics
-        member_tickets = db.query(Ticket).filter(
+        member_tickets_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.assigned_to == member.id,
                 Ticket.created_at >= start_date
             )
-        ).count()
+        ))
+        member_tickets = len(member_tickets_query.fetchall())
         
-        member_resolved = db.query(Ticket).filter(
+        member_resolved_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.assigned_to == member.id,
                 Ticket.status == "resolved",
                 Ticket.created_at >= start_date
             )
-        ).count()
+        ))
+        member_resolved = len(member_resolved_query.fetchall())
         
         # Calculate metrics
         avg_resolution = await analytics_service.get_avg_resolution_time(
@@ -181,12 +190,13 @@ async def get_team_performance(
         )
         
         # Get current workload
-        current_workload = db.query(Ticket).filter(
+        current_workload_query = await db.execute(Ticket.__table__.select().where(
             and_(
                 Ticket.assigned_to == member.id,
                 Ticket.status.in_(["open", "in_progress"])
             )
-        ).count()
+        ))
+        current_workload = len(current_workload_query.fetchall())
         
         performance_data.append({
             "user_id": member.id,
@@ -233,17 +243,18 @@ async def get_sla_report(
     start_date = end_date - timedelta(days=days)
     
     # Build query
-    query = db.query(Ticket).filter(
+    query = Ticket.__table__.select().where(
         Ticket.created_at >= start_date
     )
     
     if priority:
-        query = query.filter(Ticket.priority == priority)
+        query = query.where(Ticket.priority == priority)
     
     if category:
-        query = query.filter(Ticket.category == category)
+        query = query.where(Ticket.category == category)
     
-    tickets = query.all()
+    tickets_query = await db.execute(query)
+    tickets = tickets_query.fetchall()
     
     # Calculate SLA metrics
     sla_data = await analytics_service.calculate_sla_metrics(tickets)
@@ -302,9 +313,10 @@ async def get_ticket_analytics(
     start_date = end_date - timedelta(days=days)
     
     # Get ticket data
-    tickets = db.query(Ticket).filter(
+    tickets_query = await db.execute(Ticket.__table__.select().where(
         Ticket.created_at >= start_date
-    ).all()
+    ))
+    tickets = tickets_query.fetchall()
     
     # Generate analytics based on grouping
     analytics_data = await analytics_service.generate_ticket_analytics(
@@ -358,7 +370,8 @@ async def get_knowledge_analytics(
     start_date = end_date - timedelta(days=days)
     
     # Get knowledge articles
-    articles = db.query(KnowledgeArticle).all()
+    articles_query = await db.execute(KnowledgeArticle.__table__.select())
+    articles = articles_query.fetchall()
     
     # Calculate metrics
     total_articles = len(articles)
@@ -422,25 +435,28 @@ async def get_system_health(
     health_data = await analytics_service.get_system_health_metrics()
     
     # Get queue status
-    unassigned_tickets = db.query(Ticket).filter(
+    unassigned_tickets_query = await db.execute(Ticket.__table__.select().where(
         and_(
             Ticket.assigned_to.is_(None),
             Ticket.status.in_(["open", "in_progress"])
         )
-    ).count()
+    ))
+    unassigned_tickets = len(unassigned_tickets_query.fetchall())
     
     # Get team availability
-    available_engineers = db.query(User).filter(
+    available_engineers_query = await db.execute(User.__table__.select().where(
         and_(
             User.role.in_(["l1_engineer", "l2_engineer"]),
             User.is_active == True
         )
-    ).count()
+    ))
+    available_engineers = len(available_engineers_query.fetchall())
     
     # Calculate system load
-    total_open_tickets = db.query(Ticket).filter(
+    total_open_tickets_query = await db.execute(Ticket.__table__.select().where(
         Ticket.status.in_(["open", "in_progress"])
-    ).count()
+    ))
+    total_open_tickets = len(total_open_tickets_query.fetchall())
     
     system_load = (total_open_tickets / available_engineers) if available_engineers > 0 else 0
     

@@ -30,5 +30,5 @@ resource "google_sql_database_instance" "postgres_instance" {
 resource "google_sql_database" "db" {
   project  = var.gcp_project_id
   instance = google_sql_database_instance.postgres_instance.name
-  name     = "pdf_processing"
+  name     = "intellica"
 }
