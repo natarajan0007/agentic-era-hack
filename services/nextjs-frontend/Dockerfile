@@ -24,7 +24,7 @@ WORKDIR /app
 COPY --from=builder /app/package.json ./
 
 # Install production dependencies
-RUN npm install --production
+RUN npm install --production --legacy-peer-deps
 
 # Copy the built Next.js application from the builder stage
 COPY --from=builder /app/.next ./.next
