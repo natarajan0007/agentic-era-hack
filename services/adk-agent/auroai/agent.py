@@ -8,38 +8,11 @@ from toolbox_core import ToolboxSyncClient
 import asyncio
 import os
 
-# TODO(developer): replace this with your Google API key
-# os.environ['GOOGLE_API_KEY'] = 'your-api-key'
-ALLOWED_ORIGINS = ["http://localhost", "http://localhost:8080", "*"]
-# --- FIX START ---
+# Use an environment variable for the toolbox URL, with a default for local development
+TOOLBOX_URL = os.environ.get("TOOLBOX_URL", "http://127.0.0.1:5000")
+toolbox_client = ToolboxSyncClient(TOOLBOX_URL)
 
-# 1. Initialize the toolbox client at the module level.
-#    This makes it available for the agent definition below.
-toolbox_client = ToolboxSyncClient("http://127.0.0.1:5000")
-
-# 2. Define the agent at the top (module) level and name the variable 'root_agent'.
-#    This is what the ADK framework looks for when it imports your file.
-from google.adk.agents import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
-from google.genai import types
-from toolbox_core import ToolboxSyncClient
-
-import asyncio
-import os
-
-# TODO(developer): replace this with your Google API key
-# os.environ['GOOGLE_API_KEY'] = 'your-api-key'
-ALLOWED_ORIGINS = ["http://localhost", "http://localhost:8080", "*"]
-# --- FIX START ---
-
-# 1. Initialize the toolbox client at the module level.
-#    This makes it available for the agent definition below.
-toolbox_client = ToolboxSyncClient("http://127.0.0.1:5000")
-
-# 2. Define the agent at the top (module) level and name the variable 'root_agent'.
-#    This is what the ADK framework looks for when it imports your file.
+# The prompt for the agent
 prompt = '''
 You are Mando, a helpful AI assistant specializing in processing and managing PDF documents. Your primary role is to help users query and understand the data extracted from their uploaded PDF documents.
 
@@ -84,6 +57,8 @@ The data extracted from the PDFs is structured in JSON format. Here are some of 
 By following these guidelines, you will be a helpful and efficient assistant for our users.
 '''
 
+# Define the agent at the top (module) level.
+# This is what the ADK framework looks for when it imports your file.
 agent = Agent(
     model='gemini-2.0-flash-001',
     name='pdf_processing_agent',
@@ -92,14 +67,10 @@ agent = Agent(
     tools=toolbox_client.load_toolset("my-toolset"),
 )
 
-# --- FIX END ---
-
-
-# This main function is now just for your local testing.
+# This main function is for local testing.
 async def main():
     # The 'with' statement is good practice for testing to ensure the client is closed.
-    # Note that the global `root_agent` uses a separate, long-lived client instance.
-    with ToolboxSyncClient("http://127.0.0.1:5000") as test_client:
+    with ToolboxSyncClient(TOOLBOX_URL) as test_client:
         session_service = InMemorySessionService()
         artifacts_service = InMemoryArtifactService()
         session = await session_service.create_session(
@@ -107,7 +78,6 @@ async def main():
         )
         runner = Runner(
             app_name='pdf_processing_agent',
-            # Use the global 'root_agent' for the runner
             agent=agent,
             artifact_service=artifacts_service,
             session_service=session_service,
@@ -137,70 +107,7 @@ async def main():
             for text in responses:
                 print(text)
 
-
-# 3. This block now correctly guards the test execution.
-#    It will ONLY run when you execute `python your_file_name.py`.
-#    It will be SKIPPED when the ADK framework imports your file.
-if __name__ == "__main__":
-    asyncio.run(main())
-
-
-agent = Agent(
-    model='gemini-2.0-flash-001',
-    name='pdf_processing_agent',
-    description='A helpful AI assistant for PDF document processing and management.',
-    instruction=prompt,
-    tools=toolbox_client.load_toolset("my-toolset"),
-)
-
-# --- FIX END ---
-
-
-# This main function is now just for your local testing.
-async def main():
-    # The 'with' statement is good practice for testing to ensure the client is closed.
-    # Note that the global `root_agent` uses a separate, long-lived client instance.
-    with ToolboxSyncClient("http://127.0.0.1:5000") as test_client:
-        session_service = InMemorySessionService()
-        artifacts_service = InMemoryArtifactService()
-        session = await session_service.create_session(
-            state={}, app_name='pdf_processing_agent', user_id='123'
-        )
-        runner = Runner(
-            app_name='pdf_processing_agent',
-            # Use the global 'root_agent' for the runner
-            agent=agent,
-            artifact_service=artifacts_service,
-            session_service=session_service,
-        )
-
-        queries = [
-            "Show me the most recent 5 documents that have been uploaded.",
-            "Find any documents with 'report' in the filename.",
-            "What's the processing status of all documents?",
-            "Search for any content containing 'budget' in the extracted data.",
-            "Show me processing statistics for all extractions.",
-        ]
-
-        for query in queries:
-            print(f"\n--- USER QUERY: {query} ---\n")
-            content = types.Content(role='user', parts=[types.Part(text=query)])
-            events = runner.run(session_id=session.id,
-                                user_id='123', new_message=content)
-
-            responses = (
-                part.text
-                for event in events
-                for part in event.content.parts
-                if part.text is not None
-            )
-
-            for text in responses:
-                print(text)
-
-
-# 3. This block now correctly guards the test execution.
-#    It will ONLY run when you execute `python your_file_name.py`.
-#    It will be SKIPPED when the ADK framework imports your file.
+# This block guards the test execution.
+# It will ONLY run when you execute `python your_file_name.py`.
 if __name__ == "__main__":
     asyncio.run(main())

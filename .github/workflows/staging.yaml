@@ -71,6 +71,7 @@ jobs:
             --project=${{ env.STAGING_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
+            --set-env-vars="TOOLBOX_URL=https://toolbox-1050008974311.europe-west1.run.app" \
             --memory=1Gi \
             --cpu=1 \
             --max-instances=2 \

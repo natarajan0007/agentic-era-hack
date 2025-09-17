@@ -73,7 +73,7 @@ async def setup_cloud_sql_database():
         max_overflow=20,
         pool_pre_ping=True,
         pool_recycle=3600,
-        echo=settings.debug
+        echo=settings.DEBUG
     )
     
     AsyncSessionLocal = sessionmaker(
