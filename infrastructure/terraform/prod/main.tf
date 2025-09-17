@@ -202,6 +202,14 @@ resource "google_project_iam_member" "fastapi_sql_client" {
   member  = "serviceAccount:${google_service_account.app_service_accounts["fastapi-backend"].email}"
 }
 
+# Grant service accounts access to Vertex AI
+resource "google_project_iam_member" "vertex_ai_user" {
+  for_each = toset(["adk-agent", "fastapi-backend"])
+  project = var.gcp_project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.app_service_accounts[each.key].email}"
+}
+
 # --- CICD Resources (Created only in the Prod/CICD Project) ---
 
 resource "google_service_account" "cicd_runner_sa" {
