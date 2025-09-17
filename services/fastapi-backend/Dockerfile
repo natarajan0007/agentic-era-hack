@@ -4,6 +4,9 @@ FROM python:3.12-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y libmagic1
+
 # Install uv
 RUN pip install uv
 
