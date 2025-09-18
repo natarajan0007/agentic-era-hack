@@ -122,9 +122,9 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars="ENVIRONMENT=staging,DB_NAME=intellica,DB_USER=postgres,DB_MODE=cloud_sql,DB_HOST=qwiklabs-gcp-03-bc59c8288afe:europe-west1:qwiklabs-gcp-03-bc59c8288afe-pg-instance" \
-            --memory=2Gi \
-            --cpu=2 \
-            --max-instances=2 \
+            --memory=1Gi \
+            --cpu=1 \
+            --max-instances=1 \
             --timeout=300s
 
   deploy-nextjs-frontend:

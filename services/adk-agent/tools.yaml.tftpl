@@ -89,7 +89,8 @@ tools:
         "description": "{{.description}}",
         "priority": "{{.priority}}",
         "category": "{{.category}}",
-        "department_id": {{.department_id}}
+        "department_id": {{.department_id}},
+        "tags": {{.tags}}
       }
     bodyParams:
       - name: title
@@ -107,6 +108,9 @@ tools:
       - name: department_id
         type: integer
         description: "The ID of the department for the ticket."
+      - name: tags
+        type: string
+        description: "A JSON array of strings for the ticket tags, e.g., [\"tag1\", \"tag2\"]."
 
 
 toolsets:
