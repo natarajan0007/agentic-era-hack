@@ -19,8 +19,14 @@ tools:
   search_tickets:
     kind: postgres-sql
     source: my-pg-source
-    description: "Search for tickets based on assignee or reporter."
+    description: "Search for tickets based on various criteria like status, priority, assignee, or reporter."
     parameters:
+      - name: status
+        type: string
+        description: "The status of the ticket to search for (e.g., 'OPEN', 'IN_PROGRESS')."
+      - name: priority
+        type: string
+        description: "The priority of the ticket to search for (e.g., 'LOW', 'MEDIUM', 'HIGH')."
       - name: assigned_to_id
         type: integer
         description: "The ID of the user the ticket is assigned to."
@@ -30,8 +36,10 @@ tools:
     statement: >
       SELECT id, title, status, priority, created_at, updated_at
       FROM tickets
-      WHERE (assigned_to_id = $1 OR $1 IS NULL)
-      AND (reported_by_id = $2 OR $2 IS NULL)
+      WHERE (status = $1 OR $1 IS NULL)
+      AND (priority = $2 OR $2 IS NULL)
+      AND (assigned_to_id = $3 OR $3 IS NULL)
+      AND (reported_by_id = $4 OR $4 IS NULL)
       ORDER BY created_at DESC;
 
   get_ticket_details:
@@ -56,7 +64,7 @@ tools:
       SELECT id, title, summary, article_type, status
       FROM knowledge_articles
       WHERE title ILIKE '%' || $1 || '%' OR content ILIKE '%' || $1 || '%'
-      AND status = 'published'
+      AND status = 'PUBLISHED'
       ORDER BY view_count DESC;
 
   get_user_details:

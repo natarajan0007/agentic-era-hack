@@ -61,7 +61,7 @@ def seed_tickets():
         payload = {
             "title": ticket["title"],
             "description": ticket["description"],
-            "category": random.choice(["INCIDENT", "REQUEST"]),
+            "category": random.choice(["INCIDENT", "SERVICE_REQUEST"]),
             "priority": random.choice(["LOW", "MEDIUM", "HIGH"]),
             "department_id": DEPARTMENT_ID,
         }
