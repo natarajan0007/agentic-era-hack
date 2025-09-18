@@ -118,6 +118,63 @@ The AURA agent has the following capabilities:
 
 [Placeholder for demo.mp4 video]
 
+## Future Vision: A Multi-Agent ITSM Platform
+
+While the current implementation features a single, powerful agent (AURA), this project is designed to evolve into a complete SaaS product where every level of IT support is driven by a specialized AI agent. The goal is to create a multi-agent system where each agent has a specific role and set of capabilities, working together to provide a seamless and efficient ITSM experience.
+
+### High-Level Architecture
+
+```mermaid
+graph TD
+    subgraph "User Interface"
+        A[Next.js Frontend]
+    end
+
+    subgraph "Backend Services"
+        B[FastAPI Backend]
+        C[ADK Agent - AURA]
+        D[Toolbox Service]
+    end
+
+    subgraph "Data Store"
+        E[PostgreSQL Database]
+    end
+
+    subgraph "Cloud Infrastructure (GCP)"
+        F[Cloud Run]
+        G[Cloud SQL]
+        H[Artifact Registry]
+        I[Secret Manager]
+    end
+
+    subgraph "CI/CD"
+        J[GitHub Actions]
+        K[Terraform]
+    end
+
+    A --> B
+    A --> C
+    C --> D
+    D --> E
+    B --> E
+    J --> H
+    J --> F
+    K --> G
+    K --> I
+```
+
+### The Vision for a Multi-Agent System
+
+When fully built, the Intellica platform will feature a suite of specialized agents, each tailored to a specific user role and set of tasks:
+
+-   **End-User Agent (AURA):** The first point of contact for all users. It helps with ticket creation, provides status updates, and offers self-service solutions by searching the knowledge base.
+
+-   **L1 Engineer Agent:** A dedicated assistant for Level 1 support engineers. It can handle initial ticket triage, suggest solutions from the knowledge base, gather all necessary information from users, and escalate tickets to L2 when a problem is beyond its scope.
+
+-   **L2 Engineer Agent:** An advanced agent for Level 2 engineers. It can analyze technical data and logs, guide engineers through complex troubleshooting steps, perform root cause analysis (RCA), and even suggest new knowledge base articles based on resolved tickets.
+
+-   **Ops Manager Agent:** A high-level agent for Operations Managers. It can provide a real-time overview of team performance, generate reports on ticket volume, resolution times, and SLA compliance, and identify trends and potential problem areas in the IT infrastructure.
+
 ## Services
 
 ### `nextjs-frontend`
