@@ -81,9 +81,18 @@ tools:
     kind: http
     source: fastapi-backend
     description: "Create a new ticket using the API."
-    verb: post
+    method: post
     path: /api/v1/tickets/json
-    body:
+    requestBody: |
+      {
+        "title": "{{.title}}",
+        "description": "{{.description}}",
+        "priority": "{{.priority}}",
+        "category": "{{.category}}",
+        "department_id": {{.department_id}},
+        "tags": {{json .tags}}
+      }
+    bodyParams:
       - name: title
         type: string
         description: "The title of the ticket."
