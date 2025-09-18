@@ -208,8 +208,8 @@ jobs:
               --project=${{ env.STAGING_PROJECT_ID }} \
               --platform=managed \
               --set-secrets=DB_PASSWORD=db-password:latest \
-              --volumes=config-volume=toolbox-tools-yaml:latest \
-              --volume-mounts=config-volume=/app/config \
+              --add-volume=name=config-volume,type=secret,secret-name=toolbox-tools-yaml:latest \
+              --add-volume-mount=volume=config-volume,mount-path=/app/config \
               --args="--address,0.0.0.0,--port,5000" \
               --port=5000 \
               --memory=512Mi \
