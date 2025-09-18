@@ -290,46 +290,47 @@ jobs:
 
 
   deploy-toolbox-prod:
-      needs: validate-deployment
-      if: needs.validate-deployment.outputs.deploy-toolbox == 'true'
-      runs-on: ubuntu-latest
-      environment: production
-      permissions:
-        contents: 'read'
-        id-token: 'write'
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
-          with:
-            ref: ${{ github.event.inputs.git_ref }}
+    needs: validate-deployment
+    if: needs.validate-deployment.outputs.deploy-toolbox == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
 
-        - name: Authenticate to Google Cloud
-          uses: 'google-github-actions/auth@v2'
-          with:
-            workload_identity_provider: 'projects/${{ vars.PROD_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/ae-pool-prod/providers/ae-provider-prod'
-            service_account: 'ae-cicd-sa-prod@${{ env.PROD_PROJECT_ID }}.iam.gserviceaccount.com'
-            create_credentials_file: true
-            export_environment_variables: true
-            cleanup_credentials: true
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ vars.PROD_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/ae-pool-prod/providers/ae-provider-prod'
+          service_account: 'ae-cicd-sa-prod@${{ env.PROD_PROJECT_ID }}.iam.gserviceaccount.com'
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
 
-        - name: Deploy to Cloud Run
-          run: |
-            gcloud run deploy toolbox \
-              --image=us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest \
-              --region=${{ env.GCP_REGION }} \
-              --service-account=toolbox-sa@${{ env.PROD_PROJECT_ID }}.iam.gserviceaccount.com \
-              --project=${{ env.PROD_PROJECT_ID }} \
-              --platform=managed \
-              --set-secrets=DB_PASSWORD=db-password:latest \
-              --set-secrets=/app/config/tools.yaml=toolbox-tools-yaml:latest \
-              --set-cloudsql-instances=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance \
-              --args="--address,0.0.0.0,--port,5000" \
-              --port=5000 \
-              --memory=512Mi \
-              --cpu=1000m \
-              --min-instances=0 \
-              --max-instances=3 \
-              --concurrency=80
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy toolbox \
+            --image=us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest \
+            --region=${{ env.GCP_REGION }} \
+            --service-account=toolbox-sa@${{ env.PROD_PROJECT_ID }}.iam.gserviceaccount.com \
+            --project=${{ env.PROD_PROJECT_ID }} \
+            --platform=managed \
+            --set-secrets=DB_PASSWORD=db-password:latest \
+            --add-volume=name=config-volume,secret=toolbox-tools-yaml,items=[latest=tools.yaml] \
+            --add-volume-mount=volume=config-volume,mount-path=/app \
+            --set-cloudsql-instances=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance \
+            --args="--address,0.0.0.0,--port,5000" \
+            --port=5000 \
+            --memory=512Mi \
+            --cpu=1000m \
+            --min-instances=0 \
+            --max-instances=3 \
+            --concurrency=80
 
   post-deployment:
     needs: [validate-deployment, deploy-adk-agent-prod, deploy-fastapi-backend-prod, deploy-nextjs-frontend-prod, deploy-toolbox-prod]

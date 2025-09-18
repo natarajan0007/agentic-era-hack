@@ -177,44 +177,47 @@ jobs:
             --timeout=300s
 
   deploy-toolbox:
-      needs: changes
-      if: >
-        needs.changes.outputs.adk-agent == 'true' ||
-        contains(github.event.head_commit.message, '[toolbox]') ||
-        (!contains(github.event.head_commit.message, '[') && !contains(github.event.head_commit.message, 'skip-deploy'))
-      runs-on: ubuntu-latest
-      permissions:
-        contents: 'read'
-        id-token: 'write'
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+    needs: changes
+    if: >
+      needs.changes.outputs.adk-agent == 'true' ||
+      contains(github.event.head_commit.message, '[toolbox]') ||
+      (!contains(github.event.head_commit.message, '[') && !contains(github.event.head_commit.message, 'skip-deploy'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Authenticate to Google Cloud
-          uses: 'google-github-actions/auth@v2'
-          with:
-            workload_identity_provider: 'projects/${{ vars.STAGING_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/ae-pool-staging/providers/ae-provider-staging'
-            service_account: 'ae-cicd-sa-staging@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com'
-            create_credentials_file: true
-            export_environment_variables: true
-            cleanup_credentials: true
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ vars.STAGING_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/ae-pool-staging/providers/ae-provider-staging'
+          service_account: 'ae-cicd-sa-staging@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com'
+          create_credentials_file: true
+          export_environment_variables: true
+          cleanup_credentials: true
 
-        - name: Deploy to Cloud Run
-          run: |
-            gcloud run deploy toolbox \
-              --image=us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest \
-              --region=${{ env.GCP_REGION }} \
-              --service-account=toolbox-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com \
-              --project=${{ env.STAGING_PROJECT_ID }} \
-              --platform=managed \
-              --set-secrets=DB_PASSWORD=db-password:latest,/app/config/tools.yaml=toolbox-tools-yaml:latest \
-              --args="--address,0.0.0.0,--port,5000" \
-              --port=5000 \
-              --memory=512Mi \
-              --cpu=1000m \
-              --min-instances=0 \
-              --max-instances=3 \
-              --concurrency=80
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy toolbox \
+            --image=us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest \
+            --region=${{ env.GCP_REGION }} \
+            --service-account=toolbox-sa@${{ env.STAGING_PROJECT_ID }}.iam.gserviceaccount.com \
+            --project=${{ env.STAGING_PROJECT_ID }} \
+            --platform=managed \
+            --set-secrets=DB_PASSWORD=db-password:latest \
+            --add-volume=name=config-volume,secret=toolbox-tools-yaml,items=[latest=tools.yaml] \
+            --add-volume-mount=volume=config-volume,mount-path=/app \
+            --set-cloudsql-instances=qwiklabs-gcp-03-bc59c8288afe:europe-west1:qwiklabs-gcp-03-bc59c8288afe-pg-instance \
+            --args="--address,0.0.0.0,--port,5000" \
+            --port=5000 \
+            --memory=512Mi \
+            --cpu=1000m \
+            --min-instances=0 \
+            --max-instances=3 \
+            --concurrency=80
 
   notify-deployment:
     needs: [deploy-adk-agent, deploy-fastapi-backend, deploy-nextjs-frontend, deploy-toolbox]
