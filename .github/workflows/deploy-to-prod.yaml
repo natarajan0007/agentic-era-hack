@@ -269,7 +269,7 @@ jobs:
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=production" \
+            --set-env-vars="ENVIRONMENT=production,NEXT_PUBLIC_ADK_API_URL=https://adk-agent-${{ vars.PROD_PROJECT_NUMBER }}.europe-west1.run.app" \
             --memory=2Gi \
             --cpu=2 \
             --min-instances=1 \

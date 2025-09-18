@@ -171,6 +171,7 @@ jobs:
             --project=${{ env.STAGING_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
+            --set-env-vars="NEXT_PUBLIC_ADK_API_URL=https://adk-agent-${{ vars.STAGING_PROJECT_NUMBER }}.europe-west1.run.app" \
             --memory=1Gi \
             --cpu=1 \
             --max-instances=2 \
