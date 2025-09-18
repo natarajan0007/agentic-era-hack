@@ -4,6 +4,12 @@
 
 Intellica is a SaaS production-ready ITSM (IT Service Management) platform, completely driven by an Agentic AI assistant named **AURA** (Autonomous Unified Resilience Agent). It is designed to assist L1 and L2 engineers by providing a knowledge base, creating and managing tickets, and offering other autonomous support features to improve the efficiency of IT operations.
 
+## Demo
+
+This video provides a demonstration of the Intellica ITSM platform, showcasing the user interface and the capabilities of the AURA agent.
+
+[Watch the demo video](demo.mp4)
+
 ## Features
 
 - **AI-powered Assistant (AURA):** An agent that can understand natural language and assist with various tasks like searching the knowledge base, creating tickets, and providing user support.
@@ -24,6 +30,137 @@ The application is built using a microservices architecture and is deployed on G
 - **Database:** A PostgreSQL database hosted on Google Cloud SQL.
 - **Infrastructure:** The infrastructure is managed as code using Terraform.
 - **Deployment:** The services are deployed as containers on Google Cloud Run.
+
+## GCP Architecture
+
+The following diagram illustrates the GCP services used in this project and how they are connected.
+
+```mermaid
+graph TD
+    %% User interaction
+    USER[👤 User] --> FRONTEND[Next.js Frontend]
+    
+    subgraph "🚀 CI/CD Pipeline (GitHub Actions)"
+        direction TB
+        GHA[🔧 GitHub Actions<br/>Automated Workflows] --> GCB[🏗️ Google Cloud Build<br/>Container Building]
+        GCB --> GAR[📦 Google Artifact Registry<br/>Container Images]
+        
+        style GHA fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#ffffff
+        style GCB fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#ffffff
+        style GAR fill:#f57c00,stroke:#e65100,stroke-width:2px,color:#ffffff
+    end
+
+    subgraph "☁️ Application Services (Google Cloud Run)"
+        direction LR
+        FRONTEND[⚡ Next.js Frontend<br/>User Interface] --> BACKEND[🔥 FastAPI Backend<br/>API Services]
+        BACKEND --> AGENT[🤖 ADK Agent<br/>AI Processing]
+        AGENT --> TOOLBOX[🛠️ Toolbox<br/>Utility Services]
+        
+        style FRONTEND fill:#00acc1,stroke:#006064,stroke-width:3px,color:#ffffff
+        style BACKEND fill:#7b1fa2,stroke:#4a148c,stroke-width:3px,color:#ffffff
+        style AGENT fill:#c62828,stroke:#b71c1c,stroke-width:3px,color:#ffffff
+        style TOOLBOX fill:#558b2f,stroke:#33691e,stroke-width:3px,color:#ffffff
+    end
+
+    subgraph "🗄️ Data & Storage Layer"
+        direction TB
+        POSTGRES[(🐘 Google Cloud SQL<br/>PostgreSQL Database<br/>Structured Data)]
+        STORAGE[☁️ Google Cloud Storage<br/>File & Object Storage<br/>Unstructured Data]
+        
+        style POSTGRES fill:#336791,stroke:#1a4971,stroke-width:2px,color:#ffffff
+        style STORAGE fill:#ea4335,stroke:#d33b2c,stroke-width:2px,color:#ffffff
+    end
+
+    subgraph "🔮 Future AI & Search Services"
+        direction TB
+        VERTEX_SEARCH[🔍 Vertex AI Search<br/>Intelligent Search Engine]
+        VECTOR_DB[(🧠 Vector Database<br/>Embeddings & Similarity Search)]
+        
+        style VERTEX_SEARCH fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
+        style VECTOR_DB fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
+    end
+
+    subgraph "🔗 Future Integration Layer"
+        direction TB
+        MCP[🌐 Model Context Protocol<br/>Agent Communication Standard]
+        CONNECTORS[🔌 Agent Connectors<br/>External System Integration]
+        EXT_SYSTEMS[🏢 External Systems<br/>Third-party APIs & Services]
+        
+        style MCP fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
+        style CONNECTORS fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
+        style EXT_SYSTEMS fill:#ffeb3b,stroke:#f57f17,stroke-width:3px,color:#000000
+    end
+
+    subgraph "🔐 Security & Identity Management"
+        direction TB
+        SECRETS[🔑 Google Secret Manager<br/>API Keys & Credentials]
+        IAM[👥 Google IAM<br/>Access Control & Permissions]
+        
+        style SECRETS fill:#673ab7,stroke:#512da8,stroke-width:2px,color:#ffffff
+        style IAM fill:#ff5722,stroke:#d84315,stroke-width:2px,color:#ffffff
+    end
+
+    %% Deployment connections
+    GAR ==> FRONTEND
+    GAR ==> BACKEND  
+    GAR ==> AGENT
+    GAR ==> TOOLBOX
+
+    %% Data connections
+    BACKEND <--> POSTGRES
+    TOOLBOX <--> POSTGRES
+    GCB --> STORAGE
+
+    %% Security connections
+    FRONTEND -.-> SECRETS
+    BACKEND -.-> SECRETS
+    AGENT -.-> SECRETS
+    TOOLBOX -.-> SECRETS
+
+    GHA -.-> IAM
+    
+    %% Future AI & Search connections
+    AGENT -.-> VERTEX_SEARCH
+    VERTEX_SEARCH -.-> VECTOR_DB
+    BACKEND -.-> VERTEX_SEARCH
+
+    %% Future Integration connections
+    AGENT -.-> MCP
+    MCP -.-> CONNECTORS
+    CONNECTORS -.-> EXT_SYSTEMS
+    TOOLBOX -.-> CONNECTORS
+    
+    %% User flow
+    style USER fill:#4caf50,stroke:#388e3c,stroke-width:3px,color:#ffffff
+
+    %% Connection styling
+    linkStyle 0 stroke:#2196f3,stroke-width:4px
+    linkStyle 1 stroke:#ff9800,stroke-width:3px
+    linkStyle 2 stroke:#ff9800,stroke-width:3px
+    linkStyle 3 stroke:#4caf50,stroke-width:3px
+    linkStyle 4 stroke:#4caf50,stroke-width:3px
+    linkStyle 5 stroke:#4caf50,stroke-width:3px
+    linkStyle 6 stroke:#9c27b0,stroke-width:3px
+    linkStyle 7 stroke:#9c27b0,stroke-width:3px
+    linkStyle 8 stroke:#9c27b0,stroke-width:3px
+    linkStyle 9 stroke:#e91e63,stroke-width:2px
+    linkStyle 10 stroke:#e91e63,stroke-width:2px
+    linkStyle 11 stroke:#795548,stroke-width:2px
+    linkStyle 12 stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+    linkStyle 13 stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+    linkStyle 14 stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+    linkStyle 15 stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+    linkStyle 16 stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+    
+    %% Future connections styling (yellow dashed)
+    linkStyle 17 stroke:#ffa000,stroke-width:2px,stroke-dasharray: 8 8
+    linkStyle 18 stroke:#ffa000,stroke-width:2px,stroke-dasharray: 8 8  
+    linkStyle 19 stroke:#ffa000,stroke-width:2px,stroke-dasharray: 8 8
+    linkStyle 20 stroke:#ff6f00,stroke-width:3px,stroke-dasharray: 8 8
+    linkStyle 21 stroke:#ff6f00,stroke-width:2px,stroke-dasharray: 8 8
+    linkStyle 22 stroke:#ff6f00,stroke-width:2px,stroke-dasharray: 8 8
+    linkStyle 23 stroke:#ff6f00,stroke-width:2px,stroke-dasharray: 8 8
+```
 
 ## AURA Agent Capabilities
 
