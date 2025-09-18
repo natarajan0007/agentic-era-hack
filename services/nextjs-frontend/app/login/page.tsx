@@ -120,22 +120,22 @@ export default function LoginPage() {
             <p className="text-sm font-medium mb-2">Demo Accounts:</p>
             <div className="text-xs space-y-1">
               <p>
-                <strong>End User:</strong> enduser@intellica.com
+                <strong>End User:</strong> end.user@intellica.com
               </p>
               <p>
-                <strong>L1 Engineer:</strong> l1@intellica.com
+                <strong>L1 Engineer:</strong> l1.engineer@intellica.com
               </p>
               <p>
-                <strong>L2 Engineer:</strong> l2@intellica.com
+                <strong>L2 Engineer:</strong> l2.engineer@intellica.com
               </p>
               <p>
-                <strong>Ops Manager:</strong> ops@intellica.com
+                <strong>Ops Manager:</strong> ops.manager@intellica.com
               </p>
               <p>
-                <strong>Transition Manager:</strong> transition@intellica.com
+                <strong>Transition Manager:</strong> transition.manager@intellica.com
               </p>
               <p className="mt-2">
-                <strong>Password:</strong> password123
+                <strong>Password:</strong> securepassword123
               </p>
             </div>
           </div>
