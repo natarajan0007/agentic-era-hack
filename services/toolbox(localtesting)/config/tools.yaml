@@ -1,0 +1,69 @@
+sources:
+  my-pg-source:
+    kind: postgres
+    host: host.docker.internal
+    port: 5433
+    database: intellica
+    user: postgres
+    password: password
+
+tools:
+  search_tickets:
+    kind: postgres-sql
+    source: my-pg-source
+    description: "Search for tickets based on assignee or reporter."
+    parameters:
+      - name: assigned_to_id
+        type: integer
+        description: "The ID of the user the ticket is assigned to."
+      - name: reported_by_id
+        type: integer
+        description: "The ID of the user who reported the ticket."
+    statement: >
+      SELECT id, title, status, priority, created_at, updated_at
+      FROM tickets
+      WHERE (assigned_to_id = $1 OR $1 IS NULL)
+      AND (reported_by_id = $2 OR $2 IS NULL)
+      ORDER BY created_at DESC;
+
+  get_ticket_details:
+    kind: postgres-sql
+    source: my-pg-source
+    description: "Get detailed information about a specific ticket by its ID."
+    parameters:
+      - name: ticket_id
+        type: string
+        description: "The ID of the ticket to retrieve."
+    statement: "SELECT * FROM tickets WHERE id = $1;"
+
+  search_knowledge_articles:
+    kind: postgres-sql
+    source: my-pg-source
+    description: "Search for knowledge base articles by a search term."
+    parameters:
+      - name: search_term
+        type: string
+        description: "The term to search for in the title and content of knowledge articles."
+    statement: >
+      SELECT id, title, summary, article_type, status
+      FROM knowledge_articles
+      WHERE title ILIKE '%' || $1 || '%' OR content ILIKE '%' || $1 || '%'
+      AND status = 'published'
+      ORDER BY view_count DESC;
+
+  get_user_details:
+    kind: postgres-sql
+    source: my-pg-source
+    description: "Get details of a user by their ID."
+    parameters:
+      - name: user_id
+        type: integer
+        description: "The ID of the user to retrieve."
+    statement: "SELECT id, email, name, role, is_active FROM users WHERE id = $1;"
+
+toolsets:
+  my-toolset:
+    - search_tickets
+    - get_ticket_details
+    - search_knowledge_articles
+    - get_user_details
