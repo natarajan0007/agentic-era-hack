@@ -29,3 +29,8 @@ variable "repository_name" {
   type        = string
   description = "The name of the GitHub repository."
 }
+
+variable "gcp_project_number" {
+  type        = string
+  description = "The Google Cloud project number for the Production environment."
+}
