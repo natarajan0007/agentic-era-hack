@@ -151,26 +151,37 @@ The future of the Intellica platform lies in a **multi-agent architecture**, whe
 ```mermaid
 graph TD
     subgraph "Future Multi-Agent Architecture"
-        A[User] --> B{Mission Control Platform (MCP)};
+        A[User] --> B{Model Context Protocol MCP}
+        B -.->|Future Development| B1[MCP Implementation]
+        style B1 fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+        style B1 color:#000000
 
-        subgraph "Specialized Agents"
-            C(L1 Agent) -.-> B;
-            D(L2 Agent) -.-> B;
-            E(Ops Manager Agent) -.-> B;
+        subgraph "Specialized AURA Agents"
+            C(AURA L1 Agent - Basic Functions) -.-> B
+            D(AURA L2 Agent) -.-> B
+            E(AURA Ops Manager Agent) -.-> B
+            F(AURA End User Assistant Agent) -.-> B
         end
 
-        subgraph "Core Services"
-            B --> F[Multi-Agent Search Agent];
-            F --> G[Vertex AI Search];
-            G --> H{Knowledge Base};
+        subgraph "Core Services - Future Development"
+            B --> G[Multi-Agent Search Agent]
+            G --> H[Vertex AI Search - Current Backend]
+            H --> I{Knowledge Base - Current Backend}
+            style G fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+            style H fill:#90caf9,stroke:#1976d2,stroke-width:2px
+            style I fill:#90caf9,stroke:#1976d2,stroke-width:2px
         end
 
-        subgraph "External Tool Integrations"
-            B --> I(Connectors);
-            I --> J[IT Ops Tools];
-            I --> K[Monitoring Tools];
-            J --> L{Infrastructure};
-            K --> L;
+        subgraph "External Tool Integrations - Future Development"
+            B --> J(Connectors)
+            J --> K[IT Ops Tools]
+            J --> L[Monitoring Tools]
+            K --> M{Infrastructure}
+            L --> M
+            style J fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+            style K fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+            style L fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+            style M fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
         end
     end
 ```
