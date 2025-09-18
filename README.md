@@ -1,4 +1,4 @@
-# Intellica ITSM Platform
+# Intellica - An AI-driven ITSM Platform
 
 ## Introduction
 
