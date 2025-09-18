@@ -288,6 +288,7 @@ jobs:
             --region ${{ env.GCP_REGION }} \
             --project=${{ env.PROD_PROJECT_ID }}
 
+
   deploy-toolbox-prod:
       needs: validate-deployment
       if: needs.validate-deployment.outputs.deploy-toolbox == 'true'
@@ -320,8 +321,7 @@ jobs:
               --project=${{ env.PROD_PROJECT_ID }} \
               --platform=managed \
               --set-secrets=DB_PASSWORD=db-password:latest \
-              --add-volume=name=config-volume,type=secret,secret-name=toolbox-tools-yaml:latest \
-              --add-volume-mount=volume=config-volume,mount-path=/app/config \
+              --set-secrets=/app/config/tools.yaml=toolbox-tools-yaml:latest \
               --set-cloudsql-instances=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance \
               --args="--address,0.0.0.0,--port,5000" \
               --port=5000 \
