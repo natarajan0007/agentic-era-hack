@@ -1,13 +1,14 @@
 "use client"
 
 import { AppLayout } from "@/components/layout/app-layout"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getTickets, getDashboardMetrics } from "@/lib/api"
 import { Ticket } from "@/lib/mock-data"
-import { Clock, CheckCircle, AlertCircle, TrendingUp } from "lucide-react"
+import { Clock, CheckCircle, AlertCircle, TrendingUp, Ticket as TicketIcon, CircleDot, Loader, CheckCircle2, ArrowUpCircle } from "lucide-react"
 import Link from "next/link"
-import { AIAssistantPanel } from "@/components/ai-assistant-panel"
+import { ChatPanel } from "@/components/chat-panel"
 import { useAuthStore } from "@/lib/store"
 import { useEffect, useState } from "react"
 
@@ -33,11 +34,11 @@ export default function L1DashboardPage() {
   }, [])
 
   const assignedTickets = tickets.filter(
-    (ticket) => ticket.assignedTo === user?.email && ["OPEN", "IN_PROGRESS"].includes(ticket.status),
+    (ticket) => ticket.assignee?.email === user?.email && ["OPEN", "IN_PROGRESS"].includes(ticket.status),
   )
 
   const recentlyClosed = tickets.filter(
-    (ticket) => ticket.assignedTo === user?.email && ticket.status === "RESOLVED",
+    (ticket) => ticket.assignee?.email === user?.email && ticket.status === "RESOLVED",
   )
 
   return (
@@ -55,6 +56,24 @@ export default function L1DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+                <TicketIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.total_tickets}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tickets In Progress</CardTitle>
+                <Loader className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.in_progress_tickets}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Tickets Resolved Today</CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -63,18 +82,16 @@ export default function L1DashboardPage() {
                 <p className="text-xs text-muted-foreground">+2 from yesterday</p>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Avg Resolution Time</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{metrics.avg_resolution_time}</div>
+                <div className="text-2xl font-bold">{metrics.avg_resolution_time} hours</div>
                 <p className="text-xs text-muted-foreground">-0.3h from last week</p>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">CSAT Score</CardTitle>
@@ -85,15 +102,32 @@ export default function L1DashboardPage() {
                 <p className="text-xs text-muted-foreground">+0.2 from last month</p>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{metrics.sla_compliance}%</div>
+                <div className="text-2xl font-bold">{metrics.sla_compliance_rate}%</div>
                 <p className="text-xs text-muted-foreground">Target: 95%</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Escalated Tickets</CardTitle>
+                <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.escalated_tickets}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Closed Tickets</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.closed_tickets}</div>
               </CardContent>
             </Card>
           </div>
@@ -124,14 +158,19 @@ export default function L1DashboardPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {ticket.id} • {ticket.department}
+                            {ticket.id} • {ticket.department.name}
                           </p>
                           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
+                            <span>SLA: {new Date(ticket.sla_deadline).toLocaleString()}</span>
                           </div>
                         </div>
-                        <Badge variant={ticket.status === "IN_PROGRESS" ? "default" : "outline"}>{ticket.status}</Badge>
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/tickets/${ticket.id}`}>
+                            <Button variant="outline" size="sm">View</Button>
+                          </Link>
+                          <Badge variant={ticket.status === "IN_PROGRESS" ? "default" : "outline"}>{ticket.status}</Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -156,7 +195,12 @@ export default function L1DashboardPage() {
                             <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
                               {ticket.title}
                             </Link>
-                            <Badge variant="outline">RESOLVED</Badge>
+                            <div className="flex items-center space-x-2">
+                          <Link href={`/tickets/${ticket.id}`}>
+                            <Button variant="outline" size="sm">View</Button>
+                          </Link>
+                          <Badge variant="outline">RESOLVED</Badge>
+                        </div>
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {ticket.id} • Resolved on {new Date(ticket.updatedAt).toLocaleDateString()}
@@ -172,7 +216,7 @@ export default function L1DashboardPage() {
 
           {/* AI Assistant Panel */}
           <div>
-            <AIAssistantPanel userRole="l1-engineer" />
+            <ChatPanel />
           </div>
         </div>
       </div>

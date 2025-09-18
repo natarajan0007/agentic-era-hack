@@ -1,4 +1,3 @@
-
 import { Ticket } from "./mock-data";
 import { useAuthStore } from "./store";
 
@@ -54,6 +53,33 @@ export async function getTicketById(id: string): Promise<any> {
     return data;
   } catch (error) {
     console.error("Failed to fetch ticket:", error);
+    return null;
+  }
+}
+
+export async function getDashboardMetrics(): Promise<any> {
+  const token = useAuthStore.getState().token;
+
+  if (!token) {
+    throw new Error("No authentication token found.");
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/api/v1/tickets/stats/overview`,
+     {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch dashboard metrics.");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch dashboard metrics:", error);
     return null;
   }
 }

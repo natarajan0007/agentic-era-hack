@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { getDashboardMetrics } from "@/lib/api"
 import { Calendar, FileText, TrendingUp, BarChart3, Upload } from "lucide-react"
 import Link from "next/link"
-import { AIAssistantPanel } from "@/components/ai-assistant-panel"
+import { ChatPanel } from "@/components/chat-panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuthStore } from "@/lib/store"
 import { useEffect, useState } from "react"
@@ -225,7 +225,7 @@ export default function TransitionDashboardPage() {
 
           {/* AI Assistant Panel */}
           <div>
-            <AIAssistantPanel userRole="transition-manager" />
+            <ChatPanel />
           </div>
         </div>
       </div>

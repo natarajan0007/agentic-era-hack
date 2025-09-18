@@ -8,7 +8,7 @@ import { getTickets, getDashboardMetrics } from "@/lib/api"
 import { Ticket } from "@/lib/mock-data"
 import { Clock, Users, AlertCircle, TrendingUp, Filter } from "lucide-react"
 import Link from "next/link"
-import { AIAssistantPanel } from "@/components/ai-assistant-panel"
+import { ChatPanel } from "@/components/chat-panel"
 import { useAuthStore } from "@/lib/store"
 import { useEffect, useState } from "react"
 
@@ -123,7 +123,7 @@ export default function OpsManagerDashboardPage() {
                             <Badge variant="destructive">{ticket.priority}</Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {ticket.id} • {ticket.department} • Assigned to:{" "}
+                            {ticket.id} • {ticket.department.name} • Assigned to:{" "}
                             {ticket.assignedTo?.split("@")[0] || "Unassigned"}
                           </p>
                           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
@@ -177,7 +177,7 @@ export default function OpsManagerDashboardPage() {
 
           {/* AI Assistant Panel */}
           <div>
-            <AIAssistantPanel userRole="ops-manager" />
+            <ChatPanel />
           </div>
         </div>
       </div>

@@ -114,6 +114,57 @@ The AURA agent has the following capabilities:
 
 - **Write Operations:** AURA can create new tickets by interacting with the FastAPI backend via its OpenAPI schema. This is achieved using the `APIHubToolset` from the Google ADK.
 
+## Important Notes
+
+### Current Capabilities and Future Vision
+
+The AURA agent is the cornerstone of the Intellica ITSM platform, and its capabilities are continuously evolving. This section outlines the agent's current functionality and provides a roadmap for its future development into a more powerful and comprehensive multi-agent system.
+
+#### Current State: A Read-Only Query Agent
+
+At present, the AURA agent is primarily focused on **read-only operations**. It can query the database to retrieve information about tickets, users, and knowledge base articles. This allows the agent to answer questions and provide information to users, but it does not have the ability to perform actions that would modify the state of the system (e.g., updating a ticket, creating a user).
+
+#### Future Vision: A Multi-Agent System for Proactive IT Operations
+
+The future of the Intellica platform lies in a **multi-agent architecture**, where specialized agents work together to automate and streamline IT operations. This vision extends beyond simple query-answering and aims to create a proactive and intelligent ITSM solution.
+
+**Key future enhancements include:**
+
+*   **Integration with Vertex AI Search:** To enhance the agent's knowledge retrieval capabilities, we plan to integrate with **Vertex AI Search**. This will allow the agent to search through a vast knowledge base of technical and non-technical documents, providing more accurate and context-aware answers to end-users.
+
+*   **Multi-Agent Architecture:** The single AURA agent will evolve into a multi-agent system, with each agent tailored to a specific role (e.g., L1 Engineer Agent, L2 Engineer Agent, Ops Manager Agent). This will enable more specialized and efficient handling of tasks.
+
+*   **Integration with IT Ops and Monitoring Tools:** The multi-agent system will be integrated with various IT Ops and monitoring tools through a **Mission Control Platform (MCP)**. This will allow the agents to proactively monitor the health of the IT infrastructure, detect anomalies, and even trigger automated remediation actions.
+
+*   **Single Pane of Glass for Engineers:** By consolidating information and actions from multiple tools into a single interface, the multi-agent system will serve as a **"single pane of glass"** for engineers. This will eliminate the need for engineers to switch between different tools and dashboards, significantly improving their efficiency and reducing the cognitive load.
+
+### Architecture Diagram: Current vs. Future
+
+The following diagram illustrates the evolution of the Intellica platform from its current state to the future multi-agent architecture.
+
+```mermaid
+graph TD
+    subgraph "Current Architecture"
+        A[User] --> B(AURA Agent - Read Only);
+        B --> C{Database};
+    end
+
+    subgraph "Future Architecture"
+        D[User] --> E{Mission Control Platform (MCP)};
+        subgraph "Multi-Agent System"
+            F(L1 Agent) --> E;
+            G(L2 Agent) --> E;
+            H(Ops Manager Agent) --> E;
+        end
+        E --> I[Vertex AI Search];
+        E --> J[IT Ops Tools];
+        E --> K[Monitoring Tools];
+        I --> L{Knowledge Base};
+        J --> M{Infrastructure};
+        K --> M;
+    end
+```
+
 ### Demo
 
 [Placeholder for demo.mp4 video]
