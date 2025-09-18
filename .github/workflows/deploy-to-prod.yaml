@@ -269,10 +269,10 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars="ENVIRONMENT=production,NEXT_PUBLIC_ADK_API_URL=https://adk-agent-${{ vars.PROD_PROJECT_NUMBER }}.europe-west1.run.app" \
-            --memory=2Gi \
-            --cpu=2 \
-            --min-instances=1 \
-            --max-instances=50 \
+            --memory=1Gi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=8 \
             --timeout=900s \
             --concurrency=100 \
             --cpu-throttling \

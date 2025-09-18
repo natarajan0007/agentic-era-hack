@@ -262,14 +262,28 @@ This service exposes a set of tools that the `adk-agent` can use.
 3.  **Deploy the services:**
     - The services are deployed automatically via the GitHub Actions workflow when changes are pushed to the `main` branch.
 
-## Deployment
+## CI/CD Pipeline
 
 The application is deployed using a CI/CD pipeline defined in the `.github/workflows` directory.
 
 - **Staging:** The staging environment is deployed automatically on every push to the `main` branch.
 - **Production:** The production deployment is a manual process that can be triggered from the GitHub Actions UI.
 
-The infrastructure for both environments is defined as code using Terraform in the `infrastructure/terraform` directory.
+## Service Endpoints
+
+### Staging Environment
+
+- **Frontend:** [https://nextjs-frontend-1050008974311.europe-west1.run.app](https://nextjs-frontend-1050008974311.europe-west1.run.app)
+- **Backend API:** [https://fastapi-backend-1050008974311.europe-west1.run.app](https://fastapi-backend-1050008974311.europe-west1.run.app)
+- **ADK Agent:** [https://adk-agent-1050008974311.europe-west1.run.app](https://adk-agent-1050008974311.europe-west1.run.app)
+- **Toolbox:** [https://toolbox-1050008974311.europe-west1.run.app](https://toolbox-1050008974311.europe-west1.run.app)
+
+### Production Environment
+
+- **Frontend:** [https://nextjs-frontend-939854106735.europe-west1.run.app](https://nextjs-frontend-939854106735.europe-west1.run.app)
+- **Backend API:** [https://fastapi-backend-939854106735.europe-west1.run.app](https://fastapi-backend-939854106735.europe-west1.run.app)
+- **ADK Agent:** [https://adk-agent-939854106735.europe-west1.run.app](https://adk-agent-939854106735.europe-west1.run.app)
+- **Toolbox:** [https://toolbox-939854106735.europe-west1.run.app](https://toolbox-939854106735.europe-west1.run.app)
 
 ## Usage
 
