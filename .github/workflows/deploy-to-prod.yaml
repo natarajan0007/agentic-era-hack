@@ -135,11 +135,10 @@ jobs:
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=${{ env.PROD_PROJECT_ID }},GOOGLE_CLOUD_LOCATION=${{ env.GCP_REGION }},GOOGLE_GENAI_USE_VERTEXAI=True,TOOLBOX_URL=https://toolbox-939854106735.europe-west1.run.app" \
-            --memory=2Gi \
-            --cpu=2 \
-            --min-instances=1 \
-            --max-instances=50 \
+            --memory=1Gi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=8 \
             --timeout=900s \
             --concurrency=100 \
             --cpu-throttling \
@@ -204,9 +203,9 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars="ENVIRONMENT=production,DB_NAME=intellica,DB_USER=postgres,DB_MODE=cloud_sql,DB_HOST=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance" \
             --memory=2Gi \
-            --cpu=2 \
+            --cpu=1 \
             --min-instances=1 \
-            --max-instances=10 \
+            --max-instances=8 \
             --timeout=900s \
             --concurrency=80 \
             --cpu-throttling \
