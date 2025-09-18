@@ -120,27 +120,9 @@ The AURA agent has the following capabilities:
 
 The AURA agent is the cornerstone of the Intellica ITSM platform, and its capabilities are continuously evolving. This section outlines the agent's current functionality and provides a roadmap for its future development into a more powerful and comprehensive multi-agent system.
 
-#### Current State: A Read-Only Query Agent
+#### Current Architecture: A Read-Only Query Agent
 
-At present, the AURA agent is primarily focused on **read-only operations**. It can query the database to retrieve information about tickets, users, and knowledge base articles. This allows the agent to answer questions and provide information to users, but it does not have the ability to perform actions that would modify the state of the system (e.g., updating a ticket, creating a user).
-
-#### Future Vision: A Multi-Agent System for Proactive IT Operations
-
-The future of the Intellica platform lies in a **multi-agent architecture**, where specialized agents work together to automate and streamline IT operations. This vision extends beyond simple query-answering and aims to create a proactive and intelligent ITSM solution.
-
-**Key future enhancements include:**
-
-*   **Integration with Vertex AI Search:** To enhance the agent's knowledge retrieval capabilities, we plan to integrate with **Vertex AI Search**. This will allow the agent to search through a vast knowledge base of technical and non-technical documents, providing more accurate and context-aware answers to end-users.
-
-*   **Multi-Agent Architecture:** The single AURA agent will evolve into a multi-agent system, with each agent tailored to a specific role (e.g., L1 Engineer Agent, L2 Engineer Agent, Ops Manager Agent). This will enable more specialized and efficient handling of tasks.
-
-*   **Integration with IT Ops and Monitoring Tools:** The multi-agent system will be integrated with various IT Ops and monitoring tools through a **Mission Control Platform (MCP)**. This will allow the agents to proactively monitor the health of the IT infrastructure, detect anomalies, and even trigger automated remediation actions.
-
-*   **Single Pane of Glass for Engineers:** By consolidating information and actions from multiple tools into a single interface, the multi-agent system will serve as a **"single pane of glass"** for engineers. This will eliminate the need for engineers to switch between different tools and dashboards, significantly improving their efficiency and reducing the cognitive load.
-
-### Architecture Diagram: Current vs. Future
-
-The following diagram illustrates the evolution of the Intellica platform from its current state to the future multi-agent architecture.
+At present, the AURA agent operates as a single agent focused on **read-only operations**. It can query the database to retrieve information about tickets, users, and knowledge base articles. This allows the agent to answer questions and provide information to users.
 
 ```mermaid
 graph TD
@@ -148,20 +130,48 @@ graph TD
         A[User] --> B(AURA Agent - Read Only);
         B --> C{Database};
     end
+```
 
-    subgraph "Future Architecture"
-        D[User] --> E{Mission Control Platform (MCP)};
-        subgraph "Multi-Agent System"
-            F(L1 Agent) --> E;
-            G(L2 Agent) --> E;
-            H(Ops Manager Agent) --> E;
+#### Future Vision: A Multi-Agent System for Proactive IT Operations
+
+The future of the Intellica platform lies in a **multi-agent architecture**, where specialized agents work together to automate and streamline IT operations. This vision extends beyond simple query-answering and aims to create a proactive and intelligent ITSM solution.
+
+**Key future enhancements include:**
+
+*   **Multi-Agent Search Agent:** The single AURA agent will be replaced by a **Multi-Agent Search Agent**. This will be a sophisticated agent that can understand complex user queries and route them to the appropriate specialized agent (e.g., L1 Agent, L2 Agent). This search agent will be powered by **Vertex AI Search**, which will enable it to search through a vast knowledge base of technical and non-technical documents, providing more accurate and context-aware answers to end-users.
+
+*   **Connectors for External Tools:** To integrate with a wide range of external tools, we will develop a system of **Connectors**. These connectors will act as a bridge between the multi-agent system and various IT Ops and monitoring tools. Each connector will be responsible for translating the agent's requests into the specific API calls required by the external tool and returning the results in a format that the agent can understand.
+
+*   **Mission Control Platform (MCP):** The entire multi-agent system will be orchestrated by a **Mission Control Platform (MCP)**. The MCP will be responsible for managing the lifecycle of the agents, routing requests between them, and providing a centralized point of control and monitoring for the entire system.
+
+*   **Single Pane of Glass for Engineers:** By consolidating information and actions from multiple tools into a single interface, the multi-agent system will serve as a **"single pane of glass"** for engineers. This will eliminate the need for engineers to switch between different tools and dashboards, significantly improving their efficiency and reducing the cognitive load.
+
+**Future Architecture Diagram:**
+
+```mermaid
+graph TD
+    subgraph "Future Multi-Agent Architecture"
+        A[User] --> B{Mission Control Platform (MCP)};
+
+        subgraph "Specialized Agents"
+            C(L1 Agent) -.-> B;
+            D(L2 Agent) -.-> B;
+            E(Ops Manager Agent) -.-> B;
         end
-        E --> I[Vertex AI Search];
-        E --> J[IT Ops Tools];
-        E --> K[Monitoring Tools];
-        I --> L{Knowledge Base};
-        J --> M{Infrastructure};
-        K --> M;
+
+        subgraph "Core Services"
+            B --> F[Multi-Agent Search Agent];
+            F --> G[Vertex AI Search];
+            G --> H{Knowledge Base};
+        end
+
+        subgraph "External Tool Integrations"
+            B --> I(Connectors);
+            I --> J[IT Ops Tools];
+            I --> K[Monitoring Tools];
+            J --> L{Infrastructure};
+            K --> L;
+        end
     end
 ```
 
