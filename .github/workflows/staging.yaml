@@ -208,7 +208,7 @@ jobs:
             --project=${{ env.STAGING_PROJECT_ID }} \
             --platform=managed \
             --set-secrets=DB_PASSWORD=db-password:latest \
-            --add-volume=name=config-volume,secret=toolbox-tools-yaml,items=[latest=tools.yaml] \
+            --add-volume=name=config-volume,type=secret,secret=toolbox-tools-yaml,items=[latest=tools.yaml] \
             --add-volume-mount=volume=config-volume,mount-path=/app \
             --set-cloudsql-instances=qwiklabs-gcp-03-bc59c8288afe:europe-west1:qwiklabs-gcp-03-bc59c8288afe-pg-instance \
             --args="--address,0.0.0.0,--port,5000" \
