@@ -46,11 +46,12 @@ resource "google_secret_manager_secret" "toolbox_config_secret" {
 
 resource "google_secret_manager_secret_version" "toolbox_config_version" {
   secret      = google_secret_manager_secret.toolbox_config_secret.id
-  secret_data = templatefile("${path.module}/../../../services/adk-agent/tools.yaml", {
-    gcp_project_id   = var.gcp_project_id
-    gcp_region       = var.gcp_region
-    db_instance_name = google_sql_database_instance.postgres_instance.name
-    db_password      = var.db_password
+  secret_data = templatefile("${path.module}/../../../services/adk-agent/tools.yaml.tftpl", {
+    gcp_project_id     = var.gcp_project_id
+    gcp_project_number = var.gcp_project_number
+    gcp_region         = var.gcp_region
+    db_instance_name   = google_sql_database_instance.postgres_instance.name
+    db_password        = var.db_password
   })
 }
 
