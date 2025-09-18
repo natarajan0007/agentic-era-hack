@@ -1,142 +1,370 @@
-"use client"
+"use client";
+import { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Send, User, Bot, Trash2, Minus, Paperclip } from 'lucide-react';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { createChatSession } from '@/lib/api';
+import { useUIStore } from '@/lib/uiStore';
+import { useAuthStore } from '@/lib/store';
+import { formatUserName } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import { motion } from 'framer-motion';
+import { AppLayout } from '@/components/layout/app-layout';
 
-import type React from "react"
+interface Message {
+  text: string;
+  sender: 'user' | 'bot';
+  files?: any[];
+}
 
-import { useState } from "react"
-import { AppLayout } from "@/components/layout/app-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Paperclip } from "lucide-react"
-import { mockChatMessages, type ChatMessage } from "@/lib/mock-data"
-import { useAuthStore } from "@/lib/store"
-import { Link } from "lucide-react"
 export default function TicketIntakePage() {
-  const { user } = useAuthStore()
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages)
-  const [inputMessage, setInputMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const { isChatMinimized, toggleChatMinimize, messages, addMessage, updateLastMessage, clearChat } = useUIStore();
+  const { user } = useAuthStore();
+  const userName = formatUserName(user?.email);
+  const [input, setInput] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [files, setFiles] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const initSession = async () => {
+      const storedSessionId = localStorage.getItem('chat_session_id');
+      if (storedSessionId) {
+        setSessionId(storedSessionId);
+      } else if (user?.email) {
+        try {
+          const newSessionId = await createChatSession(user.email);
+          localStorage.setItem('chat_session_id', newSessionId);
+          setSessionId(newSessionId);
+        } catch (error) {
+          console.error("Failed to create chat session:", error);
+        }
+      }
+    };
+    initSession();
+  }, [user]);
+
+  const handleClearChat = async () => {
+    console.log('Clearing chat and creating new session');
+    clearChat();
+    localStorage.removeItem('chat_session_id');
+    if (user?.email) {
+      try {
+        console.log('Creating new session for user:', user.email);
+        const newSessionId = await createChatSession(user.email);
+        console.log('New session created after clear:', newSessionId);
+        setSessionId(newSessionId);
+        localStorage.setItem('chat_session_id', newSessionId);
+      } catch (error) {
+        console.error("Failed to create new chat session:", error);
+        setSessionId(null);
+      }
+    } else {
+      console.log('No user email, setting session to null');
+      setSessionId(null);
+    setFiles([]);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files;
+    if (selectedFiles) {
+      const newFiles = Array.from(selectedFiles).map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              name: file.name,
+              type: file.type,
+              data: (reader.result as string).split(',')[1],
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+      Promise.all(newFiles).then(processedFiles => {
+        setFiles(prevFiles => [...prevFiles, ...processedFiles]);
+      });
+    }
+  };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      sender: "user",
-      message: inputMessage,
-      timestamp: new Date().toISOString(),
+    const textToSend = input.trim();
+    
+    if (textToSend === '' && files.length === 0) {
+      console.log('Cannot send message: empty text and no files');
+      return;
     }
 
-    setMessages((prev) => [...prev, userMessage])
-    setInputMessage("")
-    setIsLoading(true)
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        message: getAIResponse(inputMessage),
-        timestamp: new Date().toISOString(),
-      }
-      setMessages((prev) => [...prev, aiResponse])
-      setIsLoading(false)
-    }, 1500)
-  }
-
-  const getAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase()
-
-    if (lowerMessage.includes("invoice") || lowerMessage.includes("payment")) {
-      return "I understand you're having an issue with invoices or payments. Can you please provide more details about:\n\n1. The specific error message you're seeing\n2. The invoice number or vendor name\n3. When did this issue first occur?\n\nThis will help me create a proper ticket for the finance team."
+    if (!sessionId) {
+      console.log('No session ID available, cannot send message');
+      updateLastMessage('❌ No active session. Please refresh the page or click the trash icon to start a new session.');
+      return;
     }
 
-    if (lowerMessage.includes("slow") || lowerMessage.includes("performance")) {
-      return "I see you're experiencing performance issues. To help diagnose this better, could you tell me:\n\n1. Which system or application is running slowly?\n2. How long have you been experiencing this?\n3. Are other users in your department affected?\n\nI'll also need to gather some technical details to escalate this properly."
-    }
+    const userMessage: Message = { text: textToSend, sender: 'user', files: files };
+    addMessage(userMessage);
+    
+    const botMessage: Message = { text: "Thinking...", sender: 'bot' };
+    addMessage(botMessage);
+    
+    setIsThinking(true);
+    
+    try {
+      const userId = user?.email ? user.email.replace(/[@.]/g, '_') : 'nat';
+      
+      const parts: any[] = [{ text: textToSend }];
+      files.forEach(file => {
+        parts.push({
+          inlineData: {
+            displayName: file.name,
+            mimeType: file.type,
+            data: file.data,
+          }
+        });
+      });
 
-    if (lowerMessage.includes("access") || lowerMessage.includes("login")) {
-      return "I can help you with access issues. Please provide:\n\n1. Which system you're trying to access\n2. Your employee ID\n3. Any error messages you're seeing\n\nI'll create a ticket for the IT team to resolve your access issue quickly."
+      const requestBody = {
+        appName: "AURA",
+        userId: userId,
+        sessionId: sessionId,
+        newMessage: {
+          parts: parts,
+          role: "user"
+        },
+        streaming: true
+      };
+      
+      console.log('Sending request with payload:', JSON.stringify(requestBody, null, 2));
+      console.log('Session ID being used:', sessionId);
+      
+      let fullResponse = '';
+      const adkApiBaseUrl = process.env.NEXT_PUBLIC_ADK_API_URL || 'http://localhost:8010';
+      const apiUrl = `${adkApiBaseUrl}/run_sse`;
+      console.log('API URL:', apiUrl);
+      
+      await fetchEventSource(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        onopen(response) {
+          console.log('Connection opened:', response.status, response.statusText);
+          if (response.ok) {
+            updateLastMessage('');
+            setInput('');
+            setFiles([]);
+            return;
+          }
+          setIsThinking(false);
+          
+          if (response.status === 404) {
+            console.error('API endpoint not found - check if server is running and endpoint exists');
+            throw new Error(`API endpoint not found (404). Check if the server is running at ${apiUrl}`);
+          } else if (response.status === 400) {
+            console.error('Bad request - check payload format');
+            throw new Error(`Bad request (400). Invalid payload format.`);
+          } else if (response.status === 500) {
+            console.error('Server error');
+            throw new Error(`Server error (500). Check server logs.`);
+          }
+          
+          throw new Error(`Failed to connect: ${response.status} ${response.statusText}`);
+        },
+        onmessage(event) {
+          console.log('Received message:', event.data);
+          setIsThinking(false);
+          try {
+            const data = JSON.parse(event.data);
+            console.log('Parsed data:', data);
+            if (data.content && data.content.parts && data.content.parts[0].text) {
+              if (data.partial) {
+                fullResponse += data.content.parts[0].text;
+              } else {
+                fullResponse = data.content.parts[0].text;
+              }
+              updateLastMessage(fullResponse);
+            } else {
+              console.log('Unexpected data format:', data);
+            }
+          } catch (parseError) {
+            console.error('Error parsing message data:', parseError, 'Raw data:', event.data);
+          }
+        },
+        onerror(err) {
+          console.error('EventSource error:', err);
+          setIsThinking(false);
+          throw err;
+        },
+      });
+    } catch (error) {
+      console.error('Chat error:', error);
+      setIsThinking(false);
+      updateLastMessage(`❌ ${error.message || 'Connection failed'} Click the trash icon to start a new session.`);
     }
+  };
 
-    return "Thank you for providing that information. Let me ask a few follow-up questions to ensure I capture all the necessary details for your ticket:\n\n1. What is the business impact of this issue?\n2. How urgent is this for your work?\n3. Have you tried any troubleshooting steps?\n\nOnce I have these details, I'll create a ticket and provide you with a reference number."
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
     }
-  }
+  }, [messages]);
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto">
-        <Card className="h-[calc(100vh-12rem)]">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center space-x-2">
-                <span>AI Support Assistant</span>
-                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-              </CardTitle>
-              <Link href="/create-ticket">
-                <Button variant="outline" size="sm">Switch to Form</Button>
-              </Link>
+      <Card className="flex flex-col bg-background border rounded-lg shadow-sm w-full h-full">
+        <CardHeader className="border-b p-3 drag-handle cursor-move bg-gray-800 dark:bg-gray-900 text-white flex-shrink-0">
+          <CardTitle className="flex items-center justify-between gap-2 text-base">
+            <div className="flex items-center gap-2">
+              <motion.div
+                animate={{
+                  scale: isThinking ? 1.2 : 1,
+                  y: isThinking ? [0, -5, 0] : [0, -2, 0],
+                }}
+                transition={{
+                  duration: isThinking ? 0.5 : 1.5,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut",
+                }}
+              >
+                <Bot className="w-6 h-6 text-white" />
+              </motion.div>
+              <span className="text-gray-200">AURA Agentic AI Assistant</span>
             </div>
-          </CardHeader>
-          <CardContent className="flex flex-col h-full p-0">
-            <ScrollArea className="flex-1 p-6">
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div key={message.id} className={`chat-message ${message.sender}`}>
-                    <div className={`chat-bubble ${message.sender}`}>
-                      <p className="whitespace-pre-line">{message.message}</p>
-                      <p className="text-xs opacity-70 mt-1">{new Date(message.timestamp).toLocaleTimeString()}</p>
-                    </div>
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="chat-message ai">
-                    <div className="chat-bubble ai">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-current rounded-full animate-bounce" />
-                        <div
-                          className="w-2 h-2 bg-current rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        />
-                        <div
-                          className="w-2 h-2 bg-current rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        />
+            <div className="flex items-center">
+              <motion.div whileHover={{ scale: 1.1, rotate: 10 }}>
+                <Button variant="ghost" size="icon" onClick={handleClearChat}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.1, rotate: 10 }}>
+                <Button variant="ghost" size="icon" onClick={toggleChatMinimize}>
+                  <Minus className="w-4 h-4" />
+                </Button>
+              </motion.div>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        {!isChatMinimized && (
+        <CardContent className="flex flex-col p-0 flex-1 min-h-0">
+          <ScrollArea className="flex-1 p-3" ref={scrollAreaRef}>
+            <div className="space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground p-3">
+                  <p>Hello {userName}! How can I assist you today?</p>
+                </div>
+              ) : (
+                messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start gap-2 ${message.sender === 'user' ? 'justify-end' : ''}`}
+                  >
+                    {message.sender === 'bot' && (
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted flex-shrink-0">
+                        <Bot className="w-3 h-3" />
                       </div>
+                    )}
+                    <div
+                      className={`max-w-[85%] p-2.5 text-sm rounded-lg prose prose-sm dark:prose-invert ${
+                        message.sender === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-none'
+                          : 'bg-muted rounded-bl-none'
+                      }`}
+                    >
+                      <ReactMarkdown>{message.text}</ReactMarkdown>
+                      {message.files && message.files.length > 0 && (
+                        <div className="mt-2">
+                          {message.files.map((file, index) => (
+                            <div key={index}>
+                              {file.type.startsWith('image/') ? (
+                                <img
+                                  src={`data:${file.type};base64,${file.data}`}
+                                  alt={file.name}
+                                  className="max-w-full h-auto rounded-lg"
+                                />
+                              ) : (
+                                <a
+                                  href={`data:${file.type};base64,${file.data}`}
+                                  download={file.name}
+                                  className="text-blue-500 underline"
+                                >
+                                  {file.name}
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    {message.sender === 'user' && (
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                        <User className="w-3 h-3" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            <div className="border-t p-4">
-              <div className="flex space-x-2">
-                <Button variant="outline" size="icon">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Describe your issue..."
-                  className="flex-1"
-                  disabled={isLoading}
-                />
-                <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+                ))
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </ScrollArea>
+          <div className="p-2 border-t flex-shrink-0">
+            {files.length > 0 && (
+              <div className="p-2 border-b">
+                <p className="text-sm font-medium">Selected files:</p>
+                <ul className="text-sm text-muted-foreground">
+                  {files.map((file, index) => (
+                    <li key={index}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                multiple
+                accept=".png,.jpeg,.jpg,.pdf,.txt"
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="ghost"
+                size="icon"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Type your message..."
+                className="flex-grow h-9 text-sm"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!input.trim() && files.length === 0}
+                className="rounded-full w-8 h-8 p-0"
+                size="sm"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+        )}
+      </Card>
     </AppLayout>
-  )
+  );
 }

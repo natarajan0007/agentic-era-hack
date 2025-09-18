@@ -65,11 +65,11 @@ export default function TicketManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                  <SelectItem value="escalated">Escalated</SelectItem>
+                  <SelectItem value="OPEN">Open</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                  <SelectItem value="ESCALATED">Escalated</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={selectedPriority} onValueChange={setSelectedPriority}>
@@ -78,10 +78,10 @@ export default function TicketManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
                 </SelectContent>
               </Select>
               <Button variant="outline" size="icon">
@@ -127,9 +127,9 @@ export default function TicketManagementPage() {
                       <TableCell>
                         <Badge
                           variant={
-                            ticket.status === "open"
+                            ticket.status === "OPEN"
                               ? "destructive"
-                              : ticket.status === "in-progress"
+                              : ticket.status === "IN_PROGRESS"
                                 ? "default"
                                 : "secondary"
                           }
@@ -138,7 +138,7 @@ export default function TicketManagementPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={ticket.priority === "high" ? "destructive" : "secondary"}>
+                        <Badge variant={ticket.priority === "HIGH" ? "destructive" : "secondary"}>
                           {ticket.priority}
                         </Badge>
                       </TableCell>

@@ -10,6 +10,7 @@ const getNavigationItems = (role: string) => {
   switch (role) {
     case "end-user":
       return [
+        { name: "AI Ticket Intake", href: "/ticket-intake", icon: Brain },
         { name: "Report Issue", href: "/create-ticket", icon: MessageSquare },
         { name: "My Tickets", href: "/my-tickets", icon: Ticket },
       ]

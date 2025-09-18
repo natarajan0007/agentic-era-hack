@@ -18,30 +18,30 @@ ticket_tag_association = Table(
 
 
 class TicketStatus(str, enum.Enum):
-    OPEN = "open"
-    IN_PROGRESS = "in-progress"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-    ESCALATED = "escalated"
-    ON_HOLD = "on-hold"
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+    ESCALATED = "ESCALATED"
+    ON_HOLD = "ON_HOLD"
 
 
 class TicketPriority(str, enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 
 class TicketCategory(str, enum.Enum):
-    INCIDENT = "incident"
-    SERVICE_REQUEST = "service-request"
-    PROBLEM = "problem"
-    CHANGE = "change"
-    HARDWARE = "hardware"
-    SOFTWARE = "software"
-    NETWORK = "network"
-    SECURITY = "security"
+    INCIDENT = "INCIDENT"
+    SERVICE_REQUEST = "SERVICE_REQUEST"
+    PROBLEM = "PROBLEM"
+    CHANGE = "CHANGE"
+    HARDWARE = "HARDWARE"
+    SOFTWARE = "SOFTWARE"
+    NETWORK = "NETWORK"
+    SECURITY = "SECURITY"
 
 
 class Ticket(Base):

@@ -1,3 +1,4 @@
+
 """
 Ticket management endpoints
 """
@@ -50,6 +51,101 @@ def calculate_sla_deadline(priority: TicketPriority, category: TicketCategory) -
     return datetime.utcnow() + timedelta(hours=hours)
 
 
+@router.post("/json", response_model=Ticket, status_code=status.HTTP_201_CREATED)
+async def create_ticket_json(
+    ticket_in: TicketCreate,
+    db: Session = Depends(get_db),
+    # FIXME: This is a temporary solution for the ADK agent.
+    # In a real-world scenario, you would want to have a secure way
+    # for the agent to authenticate and get the current user.
+    # For now, we will hardcode the user id.
+):
+    """
+    Create a new ticket from a JSON payload.
+    """
+    # Hardcoded user for now
+    user_id = 1 # Assuming user with id 1 exists (admin)
+
+    # Generate ticket ID and calculate SLA
+    ticket_id = generate_ticket_id()
+    sla_deadline = calculate_sla_deadline(ticket_in.priority, ticket_in.category)
+    
+    # Use user's department if not specified, and validate that we have one.
+    final_department_id = ticket_in.department_id
+    if final_department_id is None:
+        # Get department from user
+        user = await db.get(UserModel, user_id)
+        if user:
+            final_department_id = user.department_id
+    
+    if final_department_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A department ID is required. Please provide one or ensure the user is assigned to a department."
+        )
+    
+    # Create ticket
+    db_ticket = TicketModel(
+        id=ticket_id,
+        title=ticket_in.title,
+        description=ticket_in.description,
+        priority=ticket_in.priority,
+        category=ticket_in.category,
+        reported_by_id=user_id,
+        department_id=final_department_id,
+        sla_deadline=sla_deadline
+    )
+    
+    db.add(db_ticket)
+    await db.commit()
+    
+    # Add tags if provided
+    if ticket_in.tags:
+        from sqlalchemy import select
+        for tag_name in ticket_in.tags:
+            result = await db.execute(select(Tag).where(Tag.name == tag_name))
+            tag = result.scalar_one_or_none()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.add(tag)
+                await db.commit()
+                await db.refresh(tag)
+            
+            # Manually insert into association table to avoid lazy loading issues
+            from app.models.ticket import ticket_tag_association
+            stmt = ticket_tag_association.insert().values(ticket_id=db_ticket.id, tag_id=tag.id)
+            await db.execute(stmt)
+        await db.commit()
+
+    # Log activity
+    activity = TicketActivity(
+        ticket_id=ticket_id,
+        user_id=user_id,
+        activity_type="created",
+        details={"message": "Ticket created"}
+    )
+    db.add(activity)
+    await db.commit()
+
+    # Re-fetch the ticket with all relationships eagerly loaded for the response
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(TicketModel)
+        .options(
+            selectinload(TicketModel.reporter),
+            selectinload(TicketModel.assignee),
+            selectinload(TicketModel.department),
+            selectinload(TicketModel.tags),
+            selectinload(TicketModel.attachments),
+            selectinload(TicketModel.activities)
+        )
+        .where(TicketModel.id == db_ticket.id)
+    )
+    return result.scalar_one()
+
+
 @router.post("/", response_model=Ticket, status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     db: Session = Depends(get_db),
@@ -92,19 +188,24 @@ async def create_ticket(
     
     db.add(db_ticket)
     await db.commit()
-    await db.refresh(db_ticket)
     
     # Add tags if provided
     if tags:
+        from sqlalchemy import select
         for tag_name in tags:
-            tag_query = await db.execute(Tag.__table__.select().where(Tag.name == tag_name))
-            tag = tag_query.first()
+            result = await db.execute(select(Tag).where(Tag.name == tag_name))
+            tag = result.scalar_one_or_none()
             if not tag:
                 tag = Tag(name=tag_name)
                 db.add(tag)
-            db_ticket.tags.append(tag)
+                await db.commit()
+                await db.refresh(tag)
+            
+            # Manually insert into association table to avoid lazy loading issues
+            from app.models.ticket import ticket_tag_association
+            stmt = ticket_tag_association.insert().values(ticket_id=db_ticket.id, tag_id=tag.id)
+            await db.execute(stmt)
         await db.commit()
-        await db.refresh(db_ticket)
 
     # Handle file uploads if provided
     if files:
@@ -121,7 +222,6 @@ async def create_ticket(
             )
             db.add(attachment)
         await db.commit()
-        await db.refresh(db_ticket)
 
     # Log activity
     activity = TicketActivity(
@@ -132,9 +232,24 @@ async def create_ticket(
     )
     db.add(activity)
     await db.commit()
-    await db.refresh(db_ticket) # Refresh again to load attachments into the response model
+
+    # Re-fetch the ticket with all relationships eagerly loaded for the response
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
     
-    return db_ticket
+    result = await db.execute(
+        select(TicketModel)
+        .options(
+            selectinload(TicketModel.reporter),
+            selectinload(TicketModel.assignee),
+            selectinload(TicketModel.department),
+            selectinload(TicketModel.tags),
+            selectinload(TicketModel.attachments),
+            selectinload(TicketModel.activities)
+        )
+        .where(TicketModel.id == db_ticket.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/", response_model=TicketList)
@@ -153,7 +268,17 @@ async def get_tickets(
     """
     Get tickets with filtering and pagination
     """
-    query = TicketModel.__table__.select()
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+
+    query = select(TicketModel).options(
+        selectinload(TicketModel.reporter),
+        selectinload(TicketModel.assignee),
+        selectinload(TicketModel.department),
+        selectinload(TicketModel.tags),
+        selectinload(TicketModel.attachments),
+        selectinload(TicketModel.activities)
+    )
     
     # Apply filters based on user role
     if current_user.role.value == "end-user":
@@ -188,8 +313,9 @@ async def get_tickets(
     
     total_query = await db.execute(query)
     total = len(total_query.fetchall())
-    tickets_query = await db.execute(query.offset(skip).limit(limit))
-    tickets = tickets_query.fetchall()
+    
+    result = await db.execute(query.offset(skip).limit(limit))
+    tickets = result.scalars().all()
     
     return {
         "tickets": tickets,
@@ -208,8 +334,23 @@ async def get_ticket(
     """
     Get ticket by ID
     """
-    ticket_query = await db.execute(TicketModel.__table__.select().where(TicketModel.id == ticket_id))
-    ticket = ticket_query.first()
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(TicketModel)
+        .options(
+            selectinload(TicketModel.reporter),
+            selectinload(TicketModel.assignee),
+            selectinload(TicketModel.department),
+            selectinload(TicketModel.tags),
+            selectinload(TicketModel.attachments),
+            selectinload(TicketModel.activities)
+        )
+        .where(TicketModel.id == ticket_id)
+    )
+    ticket = result.scalar_one_or_none()
+
     if not ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

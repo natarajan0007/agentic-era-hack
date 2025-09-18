@@ -6,19 +6,55 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { mockTickets } from "@/lib/mock-data"
+import { getTickets } from "@/lib/api"
 import { Clock, Search, Filter } from "lucide-react"
 import Link from "next/link"
 import { useAuthStore } from "@/lib/store"
+import { useEffect, useState, useMemo } from "react"
 
 export default function MyTicketsPage() {
   const { user } = useAuthStore()
+  const [tickets, setTickets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
-  // Filter tickets based on user role
-  const userTickets =
-    user?.role === "end-user"
-      ? mockTickets.filter((ticket) => ticket.reportedBy === "Priya Sharma") // For end users, show tickets they reported
-      : mockTickets.filter((ticket) => ticket.assignedTo === user?.email) // For engineers, show assigned tickets
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setLoading(true)
+      const fetchedTickets = await getTickets()
+      setTickets(fetchedTickets)
+      setLoading(false)
+    }
+
+    fetchTickets()
+  }, [])
+
+  const filteredTickets = useMemo(() => {
+    let filtered = Array.isArray(tickets) ? (
+      user?.role === "end-user"
+        ? tickets.filter((ticket) => ticket.reported_by_id === parseInt(user?.id))
+        : tickets.filter((ticket) => ticket.assigned_to_id === parseInt(user?.id))
+    ) : []
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((ticket) => ticket.status === statusFilter)
+    }
+
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((ticket) => ticket.priority === priorityFilter)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter((ticket) =>
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.id.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return filtered
+  }, [tickets, user, statusFilter, priorityFilter, searchTerm])
 
   return (
     <AppLayout>
@@ -40,35 +76,37 @@ export default function MyTicketsPage() {
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[200px]">
-                <Input placeholder="Search tickets..." className="w-full" />
+                <Input 
+                  placeholder="Search tickets..." 
+                  className="w-full" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <Select defaultValue="all">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
+                  <SelectItem value="OPEN">Open</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -78,58 +116,64 @@ export default function MyTicketsPage() {
           <CardHeader>
             <CardTitle>All Tickets</CardTitle>
             <CardDescription>
-              Showing {userTickets.length} ticket{userTickets.length !== 1 ? "s" : ""}
+              Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? "s" : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {userTickets.length > 0 ? (
-                userTickets.map((ticket) => (
-                  <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
-                          {ticket.title}
-                        </Link>
-                        <Badge variant={ticket.priority === "high" ? "destructive" : "secondary"}>
-                          {ticket.priority}
-                        </Badge>
+            {loading ? (
+              <div className="text-center py-12">
+                <p>Loading tickets...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTickets.length > 0 ? (
+                  filteredTickets.map((ticket) => (
+                    <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
+                            {ticket.title}
+                          </Link>
+                          <Badge variant={ticket.priority === "HIGH" || ticket.priority === "CRITICAL" ? "destructive" : "secondary"}>
+                            {ticket.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {ticket.id} • {ticket.department?.name} • Created: {new Date(ticket.created_at).toLocaleDateString()}
+                        </p>
+                        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>SLA: {new Date(ticket.sla_deadline).toLocaleString()}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {ticket.id} • {ticket.department} • Created: {new Date(ticket.createdAt).toLocaleDateString()}
-                      </p>
-                      <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
-                      </div>
+                      <Badge
+                        variant={
+                          ticket.status === "OPEN"
+                            ? "destructive"
+                            : ticket.status === "IN_PROGRESS"
+                              ? "default"
+                              : ticket.status === "RESOLVED"
+                                ? "secondary"
+                                : "outline"
+                        }
+                      >
+                        {ticket.status}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={
-                        ticket.status === "open"
-                          ? "destructive"
-                          : ticket.status === "in-progress"
-                            ? "default"
-                            : ticket.status === "resolved"
-                              ? "secondary"
-                              : "outline"
-                      }
-                    >
-                      {ticket.status}
-                    </Badge>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium">No tickets found</h3>
+                    <p className="text-muted-foreground">
+                      {user?.role === "end-user"
+                        ? "You haven't reported any tickets yet."
+                        : "No tickets are currently assigned to you."}
+                    </p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium">No tickets found</h3>
-                  <p className="text-muted-foreground">
-                    {user?.role === "end-user"
-                      ? "You haven't reported any tickets yet."
-                      : "No tickets are currently assigned to you."}
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

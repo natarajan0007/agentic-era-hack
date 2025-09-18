@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -12,16 +12,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { useAuthStore } from "@/lib/store"
-import { mockTickets } from "@/lib/mock-data"
+import { useAuthStore, useClonedTicketStore } from "@/lib/store"
+import { getDepartments, createTicket } from "@/lib/api"
 import toast from "react-hot-toast"
 
 const ticketSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   priority: z.enum(["low", "medium", "high", "critical"]),
-  category: z.enum(["incident", "service", "problem", "change"]),
-  department: z.string().min(1, "Department is required"),
+  category: z.enum(["incident", "service-request", "problem", "change", "hardware", "software", "network", "security"]),
+  department_id: z.string().min(1, "Department is required"),
+  tags: z.string().optional(),
+  files: z.any().optional(),
 })
 
 type TicketForm = z.infer<typeof ticketSchema>
@@ -29,56 +31,59 @@ type TicketForm = z.infer<typeof ticketSchema>
 export default function CreateTicketPage() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const { clonedTicket, clearClonedTicket } = useClonedTicketStore()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [departments, setDepartments] = useState<any[]>([])
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    control,
+    setValue,
   } = useForm<TicketForm>({
     resolver: zodResolver(ticketSchema),
-    defaultValues: {
+    defaultValues: clonedTicket ? {
+      title: `Copy of: ${clonedTicket.title}`,
+      description: clonedTicket.description,
+      priority: clonedTicket.priority,
+      category: clonedTicket.category,
+      department_id: clonedTicket.department_id.toString(),
+      tags: clonedTicket.tags.map((tag: any) => tag.name).join(", "),
+    } : {
+      title: "",
+      description: "",
       priority: "medium",
       category: "incident",
-      department: user?.role === "end-user" ? "Finance - Accounts Payable" : "",
+      department_id: "",
+      tags: "",
     },
   })
 
-  const onSubmit = (data: TicketForm) => {
+  useEffect(() => {
+    // Clear the cloned ticket from the store after the form is initialized
+    if (clonedTicket) {
+      clearClonedTicket()
+    }
+  }, [clonedTicket, clearClonedTicket])
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      const fetchedDepartments = await getDepartments()
+      setDepartments(fetchedDepartments)
+    }
+
+    fetchDepartments()
+  }, [])
+
+  const onSubmit = async (data: TicketForm) => {
     setIsSubmitting(true)
 
     try {
-      // Create a new ticket object
-      const newTicket = {
-        id: `INC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 10000).toString().padStart(5, "0")}`,
-        title: data.title,
-        description: data.description,
-        status: "open",
-        priority: data.priority,
-        category: data.category,
-        reportedBy: user?.name || "Unknown User",
-        assignedTo: user?.role === "end-user" ? "l1@intellica.com" : undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        slaDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
-        department: data.department,
-        tags: [],
-      }
-
-      // Get existing tickets from localStorage or use empty array if none exist
-      const existingTickets = JSON.parse(localStorage.getItem("tickets") || "[]") 
-
-      // Add new ticket to the array
-      const updatedTickets = [newTicket, ...existingTickets]
-
-      // Save back to localStorage
-      localStorage.setItem("tickets", JSON.stringify(updatedTickets))
-
+      await createTicket(data)
       toast.success("Ticket created successfully!")
       reset()
-      
-      // Redirect to my-tickets page
       router.push("/my-tickets")
     } catch (error) {
       toast.error("Failed to create ticket")
@@ -95,8 +100,8 @@ export default function CreateTicketPage() {
           <CardHeader>
             <CardTitle>Create New Ticket</CardTitle>
             <CardDescription>
-              {user?.role === "end-user" 
-                ? "Report an issue or request a service" 
+              {user?.role === "end-user"
+                ? "Report an issue or request a service"
                 : "Create a new ticket in the system"}
             </CardDescription>
           </CardHeader>
@@ -128,7 +133,7 @@ export default function CreateTicketPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="priority">Priority</Label>
-                  <Select defaultValue="medium" {...register("priority")}>
+                  <Select onValueChange={(value) => setValue("priority", value as any)} defaultValue={clonedTicket?.priority || "medium"}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
@@ -143,29 +148,58 @@ export default function CreateTicketPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select defaultValue="incident" {...register("category")}>
+                  <Select onValueChange={(value) => setValue("category", value as any)} defaultValue={clonedTicket?.category || "incident"}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="incident">Incident</SelectItem>
-                      <SelectItem value="service">Service Request</SelectItem>
+                      <SelectItem value="service-request">Service Request</SelectItem>
                       <SelectItem value="problem">Problem</SelectItem>
                       <SelectItem value="change">Change Request</SelectItem>
+                      <SelectItem value="hardware">Hardware</SelectItem>
+                      <SelectItem value="software">Software</SelectItem>
+                      <SelectItem value="network">Network</SelectItem>
+                      <SelectItem value="security">Security</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department_id">Department</Label>
+                <Select onValueChange={(value) => setValue("department_id", value)} defaultValue={clonedTicket?.department_id?.toString() || ""}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.department_id && <p className="text-sm text-red-500">{errors.department_id.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags</Label>
                 <Input
-                  id="department"
-                  placeholder="Department name"
-                  {...register("department")}
-                  className={errors.department ? "border-red-500" : ""}
+                  id="tags"
+                  placeholder="e.g., invoice, sap, error"
+                  {...register("tags")}
                 />
-                {errors.department && <p className="text-sm text-red-500">{errors.department.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="files">Attachments</Label>
+                <Input
+                  id="files"
+                  type="file"
+                  multiple
+                  {...register("files")}
+                />
               </div>
 
               <div className="flex justify-end space-x-2">

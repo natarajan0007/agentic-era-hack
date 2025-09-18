@@ -4,14 +4,36 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { mockTickets, mockMetrics } from "@/lib/mock-data"
+import { getTickets, getDashboardMetrics } from "@/lib/api"
+import { Ticket } from "@/lib/mock-data"
 import { Clock, Users, AlertCircle, TrendingUp, Filter } from "lucide-react"
 import Link from "next/link"
 import { AIAssistantPanel } from "@/components/ai-assistant-panel"
+import { useAuthStore } from "@/lib/store"
+import { useEffect, useState } from "react"
 
 export default function OpsManagerDashboardPage() {
-  const criticalTickets = mockTickets.filter((ticket) => ticket.priority === "high" || ticket.priority === "critical")
-  const metrics = mockMetrics.opsManager
+  const { user } = useAuthStore()
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [metrics, setMetrics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      const [fetchedTickets, fetchedMetrics] = await Promise.all([
+        getTickets(),
+        getDashboardMetrics(),
+      ])
+      setTickets(fetchedTickets)
+      setMetrics(fetchedMetrics)
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [])
+
+  const criticalTickets = tickets.filter((ticket) => ticket.priority === "HIGH" || ticket.priority === "CRITICAL")
 
   return (
     <AppLayout>
@@ -22,51 +44,55 @@ export default function OpsManagerDashboardPage() {
         </div>
 
         {/* Metrics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Active Tickets</CardTitle>
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalActiveTickets}</div>
-              <p className="text-xs text-muted-foreground">-3 from yesterday</p>
-            </CardContent>
-          </Card>
+        {loading || !metrics ? (
+          <p>Loading metrics...</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Active Tickets</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.open_tickets}</div>
+                <p className="text-xs text-muted-foreground">-3 from yesterday</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">L1 Team Performance</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.l1TeamPerformance}%</div>
-              <p className="text-xs text-muted-foreground">+2% from last week</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">L1 Team Performance</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">92%</div>
+                <p className="text-xs text-muted-foreground">+2% from last week</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">L2 Team Performance</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.l2TeamPerformance}%</div>
-              <p className="text-xs text-muted-foreground">+5% from last week</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">L2 Team Performance</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">88%</div>
+                <p className="text-xs text-muted-foreground">+5% from last week</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.overallSlaCompliance}%</div>
-              <p className="text-xs text-muted-foreground">Target: 95%</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.sla_compliance}%</div>
+                <p className="text-xs text-muted-foreground">Target: 95%</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Critical Tickets */}
@@ -83,29 +109,33 @@ export default function OpsManagerDashboardPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {criticalTickets.map((ticket) => (
-                    <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
-                            {ticket.title}
-                          </Link>
-                          <Badge variant="destructive">{ticket.priority}</Badge>
+                {loading ? (
+                  <p>Loading tickets...</p>
+                ) : (
+                  <div className="space-y-4">
+                    {criticalTickets.map((ticket) => (
+                      <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
+                              {ticket.title}
+                            </Link>
+                            <Badge variant="destructive">{ticket.priority}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {ticket.id} • {ticket.department} • Assigned to:{" "}
+                            {ticket.assignedTo?.split("@")[0] || "Unassigned"}
+                          </p>
+                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {ticket.id} • {ticket.department} • Assigned to:{" "}
-                          {ticket.assignedTo?.split("@")[0] || "Unassigned"}
-                        </p>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
-                        </div>
+                        <Badge variant={ticket.status === "OPEN" ? "destructive" : "default"}>{ticket.status}</Badge>
                       </div>
-                      <Badge variant={ticket.status === "open" ? "destructive" : "default"}>{ticket.status}</Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

@@ -3,21 +3,42 @@
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockTickets, mockMetrics } from "@/lib/mock-data"
+import { getTickets, getDashboardMetrics } from "@/lib/api"
+import { Ticket } from "@/lib/mock-data"
 import { Clock, CheckCircle, AlertCircle, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { AIAssistantPanel } from "@/components/ai-assistant-panel"
+import { useAuthStore } from "@/lib/store"
+import { useEffect, useState } from "react"
 
 export default function L1DashboardPage() {
-  const assignedTickets = mockTickets.filter(
-    (ticket) => ticket.assignedTo === "l1@intellica.com" && ["open", "in-progress"].includes(ticket.status),
+  const { user } = useAuthStore()
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [metrics, setMetrics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      const [fetchedTickets, fetchedMetrics] = await Promise.all([
+        getTickets(),
+        getDashboardMetrics(),
+      ])
+      setTickets(fetchedTickets)
+      setMetrics(fetchedMetrics)
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [])
+
+  const assignedTickets = tickets.filter(
+    (ticket) => ticket.assignedTo === user?.email && ["OPEN", "IN_PROGRESS"].includes(ticket.status),
   )
 
-  const recentlyClosed = mockTickets.filter(
-    (ticket) => ticket.assignedTo === "l1@intellica.com" && ticket.status === "resolved",
+  const recentlyClosed = tickets.filter(
+    (ticket) => ticket.assignedTo === user?.email && ticket.status === "RESOLVED",
   )
-
-  const metrics = mockMetrics.l1
 
   return (
     <AppLayout>
@@ -28,51 +49,55 @@ export default function L1DashboardPage() {
         </div>
 
         {/* Metrics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tickets Resolved Today</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.ticketsResolvedToday}</div>
-              <p className="text-xs text-muted-foreground">+2 from yesterday</p>
-            </CardContent>
-          </Card>
+        {loading || !metrics ? (
+          <p>Loading metrics...</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tickets Resolved Today</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.resolved_tickets}</div>
+                <p className="text-xs text-muted-foreground">+2 from yesterday</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Resolution Time</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.averageResolutionTime}</div>
-              <p className="text-xs text-muted-foreground">-0.3h from last week</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Resolution Time</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.avg_resolution_time}</div>
+                <p className="text-xs text-muted-foreground">-0.3h from last week</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">CSAT Score</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.csatScore}/5</div>
-              <p className="text-xs text-muted-foreground">+0.2 from last month</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">CSAT Score</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">4.2/5</div>
+                <p className="text-xs text-muted-foreground">+0.2 from last month</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.slaCompliance}%</div>
-              <p className="text-xs text-muted-foreground">Target: 95%</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.sla_compliance}%</div>
+                <p className="text-xs text-muted-foreground">Target: 95%</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Assigned Tickets */}
@@ -83,30 +108,34 @@ export default function L1DashboardPage() {
                 <CardDescription>Tickets currently assigned to you</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {assignedTickets.map((ticket) => (
-                    <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
-                            {ticket.title}
-                          </Link>
-                          <Badge variant={ticket.priority === "high" ? "destructive" : "secondary"}>
-                            {ticket.priority}
-                          </Badge>
+                {loading ? (
+                  <p>Loading tickets...</p>
+                ) : (
+                  <div className="space-y-4">
+                    {assignedTickets.map((ticket) => (
+                      <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
+                              {ticket.title}
+                            </Link>
+                            <Badge variant={ticket.priority === "HIGH" ? "destructive" : "secondary"}>
+                              {ticket.priority}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {ticket.id} • {ticket.department}
+                          </p>
+                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {ticket.id} • {ticket.department}
-                        </p>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>SLA: {new Date(ticket.slaDeadline).toLocaleString()}</span>
-                        </div>
+                        <Badge variant={ticket.status === "IN_PROGRESS" ? "default" : "outline"}>{ticket.status}</Badge>
                       </div>
-                      <Badge variant={ticket.status === "in-progress" ? "default" : "outline"}>{ticket.status}</Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -116,23 +145,27 @@ export default function L1DashboardPage() {
                 <CardDescription>Your recently resolved tickets</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {recentlyClosed.map((ticket) => (
-                    <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
-                            {ticket.title}
-                          </Link>
-                          <Badge variant="outline">resolved</Badge>
+                {loading ? (
+                  <p>Loading tickets...</p>
+                ) : (
+                  <div className="space-y-4">
+                    {recentlyClosed.map((ticket) => (
+                      <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Link href={`/tickets/${ticket.id}`} className="font-medium hover:underline">
+                              {ticket.title}
+                            </Link>
+                            <Badge variant="outline">RESOLVED</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {ticket.id} • Resolved on {new Date(ticket.updatedAt).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {ticket.id} • Resolved on {new Date(ticket.updatedAt).toLocaleDateString()}
-                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

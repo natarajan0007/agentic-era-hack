@@ -38,9 +38,10 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const result = authenticateUser(data.email, data.password)
+      const result = await authenticateUser(data.email, data.password)
 
       if (result) {
+        console.log("User role:", result.user.role);
         login(result.user, result.token)
         toast.success("Login successful!")
 

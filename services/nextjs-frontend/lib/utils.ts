@@ -33,3 +33,9 @@ export function getTimeAgo(date: string | Date) {
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
   return `${Math.floor(diffInSeconds / 86400)}d ago`
 }
+
+export function formatUserName(email: string | null | undefined): string {
+  if (!email) return "User";
+  const name = email.split('@')[0];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}

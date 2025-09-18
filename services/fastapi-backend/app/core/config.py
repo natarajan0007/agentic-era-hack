@@ -40,9 +40,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     ALLOWED_ORIGINS: List[str] = Field(default=[
-        "http://127.0.0.1:3000",
-        "https://cto-nse-maedel-dev.vmo2digital.co.uk",
-        "https://maedel-service-920266728097.europe-west2.run.app"
+        "http://localhost:3001",
     ], env="ALLOWED_ORIGINS")
     
     # AI Services

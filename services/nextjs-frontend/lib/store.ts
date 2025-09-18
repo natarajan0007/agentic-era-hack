@@ -24,3 +24,16 @@ export const useAuthStore = create<AuthStore>()(
     },
   ),
 )
+
+interface ClonedTicketStore {
+  clonedTicket: any | null;
+  setClonedTicket: (ticket: any) => void;
+  clearClonedTicket: () => void;
+}
+
+export const useClonedTicketStore = create<ClonedTicketStore>((set) => ({
+  clonedTicket: null,
+  setClonedTicket: (ticket) => set({ clonedTicket: ticket }),
+  clearClonedTicket: () => set({ clonedTicket: null }),
+}));
+

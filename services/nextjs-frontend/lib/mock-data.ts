@@ -2,9 +2,9 @@ export interface Ticket {
   id: string
   title: string
   description: string
-  status: "open" | "in-progress" | "resolved" | "closed" | "escalated"
-  priority: "low" | "medium" | "high" | "critical"
-  category: "incident" | "service" | "problem" | "change"
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "ESCALATED"
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  category: "INCIDENT" | "SERVICE" | "PROBLEM" | "CHANGE"
   reportedBy: string
   assignedTo?: string
   createdAt: string
@@ -31,9 +31,9 @@ export const mockTickets: Ticket[] = [
     title: "Invoice matching error - Price variance exceeds tolerance",
     description:
       'Invoice #INV-456789 from Vendor ABC Supplies Pvt. Ltd. is not matching with Purchase Order #PO-123456 in the ERP system (SAP S/4HANA). The system is throwing a "Price Variance Exceeds Tolerance" error during the 3-way match process.',
-    status: "open",
-    priority: "high",
-    category: "incident",
+    status: "OPEN",
+    priority: "HIGH",
+    category: "INCIDENT",
     reportedBy: "Priya Sharma",
     assignedTo: "l1@intellica.com",
     createdAt: "2025-06-04T10:45:00Z",
@@ -48,9 +48,9 @@ export const mockTickets: Ticket[] = [
     title: "Performance degradation in Procure-to-Pay solution",
     description:
       "Users are experiencing significant delays (10-15 seconds) when performing invoice matching in the custom-built Procure-to-Pay solution. The issue is intermittent but has increased in frequency since the last system patch.",
-    status: "in-progress",
-    priority: "medium",
-    category: "incident",
+    status: "IN_PROGRESS",
+    priority: "MEDIUM",
+    category: "INCIDENT",
     reportedBy: "Priya Sharma",
     assignedTo: "l2@intellica.com",
     createdAt: "2025-06-04T11:15:00Z",
@@ -63,9 +63,9 @@ export const mockTickets: Ticket[] = [
     id: "SR-20250603-00045",
     title: "Request for new user access to procurement system",
     description: "New employee John Smith needs access to the procurement system with buyer role permissions.",
-    status: "resolved",
-    priority: "low",
-    category: "service",
+    status: "RESOLVED",
+    priority: "LOW",
+    category: "SERVICE",
     reportedBy: "HR Team",
     assignedTo: "l1@intellica.com",
     createdAt: "2025-06-03T09:00:00Z",
