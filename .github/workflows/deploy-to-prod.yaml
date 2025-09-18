@@ -320,9 +320,7 @@ jobs:
             --service-account=toolbox-sa@${{ env.PROD_PROJECT_ID }}.iam.gserviceaccount.com \
             --project=${{ env.PROD_PROJECT_ID }} \
             --platform=managed \
-            --set-secrets=DB_PASSWORD=db-password:latest \
-            --add-volume=name=config-volume,type=secret,secret=toolbox-tools-yaml,items=[latest=tools.yaml] \
-            --add-volume-mount=volume=config-volume,mount-path=/app \
+            --update-secrets=DB_PASSWORD=db-password:latest,/app/tools.yaml=toolbox-tools-yaml:latest \
             --set-cloudsql-instances=qwiklabs-gcp-02-b02e3ca6f413:europe-west1:qwiklabs-gcp-02-b02e3ca6f413-pg-instance \
             --args="--address,0.0.0.0,--port,5000" \
             --port=5000 \
