@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     # CORS Configuration
     ALLOWED_ORIGINS: List[str] = Field(default=[
         "http://localhost:3001",
+        "https://nextjs-frontend-1050008974311.europe-west1.run.app",
+        "https://nextjs-frontend-939854106735.europe-west1.run.app",
     ], env="ALLOWED_ORIGINS")
     
     # AI Services
