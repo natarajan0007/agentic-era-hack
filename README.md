@@ -25,15 +25,6 @@ The application is built using a microservices architecture and is deployed on G
 - **Infrastructure:** The infrastructure is managed as code using Terraform.
 - **Deployment:** The services are deployed as containers on Google Cloud Run.
 
-## How the Agent (AURA) Works
-
-AURA is built on the Google Agent Development Kit (ADK) and leverages a powerful Gemini model. Its architecture is designed for complex, multi-turn conversations and tool use.
-
-1.  **Session Management:** Every conversation with AURA is stored in a Session Store. This allows the agent to maintain context throughout the conversation.
-2.  **Memory Bank:** AURA has a Memory Bank that stores information as embeddings. This allows the agent to recall relevant information from past conversations.
-3.  **Tool Use:** AURA can use a set of tools to perform actions. These tools are exposed by the `toolbox` service and allow the agent to interact with the database and other services. For example, AURA can use a tool to search for a document in the knowledge base or to create a new ticket.
-4.  **Chain-of-Thought:** AURA uses a chain-of-thought process to break down complex requests into smaller, manageable sub-tasks. It can then use its tools to execute these sub-tasks and provide a comprehensive response.
-
 ## AURA Agent Capabilities
 
 ### ERD Diagram
@@ -151,163 +142,33 @@ The future of the Intellica platform lies in a **multi-agent architecture**, whe
 ```mermaid
 graph TD
     subgraph "Future Multi-Agent Architecture"
-        A[User] --> B{Model Context Protocol MCP}
-        B -.->|Future Development| B1[MCP Implementation]
-        style B1 fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-        style B1 color:#000000
+        A[User] --> B{Mission Control Platform (MCP)};
 
-        subgraph "Specialized AURA Agents"
-            C(AURA L1 Agent - Basic Functions) -.-> B
-            D(AURA L2 Agent) -.-> B
-            E(AURA Ops Manager Agent) -.-> B
-            F(AURA End User Assistant Agent) -.-> B
+        subgraph "Specialized Agents"
+            C(L1 Agent) -.-> B;
+            D(L2 Agent) -.-> B;
+            E(Ops Manager Agent) -.-> B;
         end
 
-        subgraph "Core Services - Future Development"
-            B --> G[Multi-Agent Search Agent]
-            G --> H[Vertex AI Search - Current Backend]
-            H --> I{Knowledge Base - Current Backend}
-            style G fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-            style H fill:#90caf9,stroke:#1976d2,stroke-width:2px
-            style I fill:#90caf9,stroke:#1976d2,stroke-width:2px
+        subgraph "Core Services"
+            B --> F[Multi-Agent Search Agent];
+            F --> G[Vertex AI Search];
+            G --> H{Knowledge Base};
         end
 
-        subgraph "External Tool Integrations - Future Development"
-            B --> J(Connectors)
-            J --> K[IT Ops Tools]
-            J --> L[Monitoring Tools]
-            K --> M{Infrastructure}
-            L --> M
-            style J fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-            style K fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-            style L fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-            style M fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
+        subgraph "External Tool Integrations"
+            B --> I(Connectors);
+            I --> J[IT Ops Tools];
+            I --> K[Monitoring Tools];
+            J --> L{Infrastructure};
+            K --> L;
         end
     end
 ```
 
-### Demo
+## Demo
 
-[Placeholder for demo.mp4 video]
-
-## Future Vision: A Multi-Agent ITSM Platform
-
-While the current implementation features a single, powerful agent (AURA), this project is designed to evolve into a complete SaaS product where every level of IT support is driven by a specialized AI agent. The goal is to create a multi-agent system where each agent has a specific role and set of capabilities, working together to provide a seamless and efficient ITSM experience.
-
-### High-Level Architecture
-
-```mermaid
-graph TD
-    subgraph "User Interface"
-        A[Next.js Frontend]
-    end
-
-    subgraph "Backend Services"
-        B[FastAPI Backend]
-        C[ADK Agent - AURA]
-        D[Toolbox Service]
-    end
-
-    subgraph "Data Store"
-        E[PostgreSQL Database]
-    end
-
-    subgraph "Cloud Infrastructure (GCP)"
-        F[Cloud Run]
-        G[Cloud SQL]
-        H[Artifact Registry]
-        I[Secret Manager]
-    end
-
-    subgraph "CI/CD"
-        J[GitHub Actions]
-        K[Terraform]
-    end
-
-    A --> B
-    A --> C
-    C --> D
-    D --> E
-    B --> E
-    J --> H
-    J --> F
-    K --> G
-    K --> I
-```
-
-### The Vision for a Multi-Agent System
-
-When fully built, the Intellica platform will feature a suite of specialized agents, each tailored to a specific user role and set of tasks:
-
--   **End-User Agent (AURA):** The first point of contact for all users. It helps with ticket creation, provides status updates, and offers self-service solutions by searching the knowledge base.
-
--   **L1 Engineer Agent:** A dedicated assistant for Level 1 support engineers. It can handle initial ticket triage, suggest solutions from the knowledge base, gather all necessary information from users, and escalate tickets to L2 when a problem is beyond its scope.
-
--   **L2 Engineer Agent:** An advanced agent for Level 2 engineers. It can analyze technical data and logs, guide engineers through complex troubleshooting steps, perform root cause analysis (RCA), and even suggest new knowledge base articles based on resolved tickets.
-
--   **Ops Manager Agent:** A high-level agent for Operations Managers. It can provide a real-time overview of team performance, generate reports on ticket volume, resolution times, and SLA compliance, and identify trends and potential problem areas in the IT infrastructure.
-
-## Services
-
-### `nextjs-frontend`
-
-The main web interface for the Intellica ITSM platform.
-
-- **Framework:** Next.js (React)
-- **Language:** TypeScript
-- **Key Features:**
-    - User login and authentication
-    - Ticket creation and management views
-    - Knowledge base browsing and search
-    - Analytics and reporting dashboards
-    - Team performance monitoring
-    - A chat interface to interact with AURA
-
-### `fastapi-backend`
-
-The core of the application, providing a RESTful API for the frontend and the agent.
-
-- **Framework:** FastAPI
-- **Language:** Python
-- **Key Features:**
-    - User authentication and authorization
-    - CRUD operations for tickets, users, departments, and knowledge base articles
-    - An API for the chat interface
-    - Analytics data processing
-    - [Placeholder for more backend features]
-
-### `adk-agent`
-
-This is AURA, the AI agent.
-
-- **Framework:** Google Agent Development Kit (ADK)
-- **Language:** Python
-- **Key Features:**
-    - Natural Language Understanding
-    - Tool integration with the `toolbox` service
-    - Manages conversation history and memory
-    - [Placeholder for more agent features]
-
-### `toolbox`
-
-This service exposes a set of tools that the `adk-agent` can use.
-
-- **Framework:** Custom (based on `genai-toolbox`)
-- **Language:** Python
-- **Key Features:**
-    - Provides tools to search, create, and update database records.
-    - Acts as a bridge between the AI agent and the application's data.
-    - [Placeholder for more toolbox features]
-
-## Technology Stack
-
-- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
-- **Backend:** FastAPI, Python, SQLAlchemy
-- **AI:** Google Agent Development Kit (ADK), Gemini
-- **Database:** PostgreSQL
-- **Infrastructure as Code:** Terraform
-- **CI/CD:** GitHub Actions, Google Cloud Build
-- **Deployment:** Google Cloud Run, Docker
+Due to time constraints during the hackathon, the full end-to-end demo is not currently functional. However, the individual services can be tested, and the `toolbox` service, which is crucial for the agent's functionality, can be tested locally.
 
 ## Getting Started
 
@@ -323,8 +184,8 @@ This service exposes a set of tools that the `adk-agent` can use.
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
-    cd <repository-name>
+    git clone https://github.com/natarajan0007/agentic-era-hack.git
+    cd agentic-era-hack
     ```
 
 2.  **Set up the infrastructure:**
@@ -334,12 +195,97 @@ This service exposes a set of tools that the `adk-agent` can use.
 3.  **Deploy the services:**
     - The services are deployed automatically via the GitHub Actions workflow when changes are pushed to the `main` branch.
 
+## Local Development
+
+To run the services locally for development and testing, follow these instructions.
+
+### Backend (`fastapi-backend`)
+
+1.  **Navigate to the backend directory:**
+    ```bash
+    cd services/fastapi-backend
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Run the development server:**
+    ```bash
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 9090
+    ```
+
+### ADK Agent (`adk-agent`)
+
+1.  **Navigate to the agent directory:**
+    ```bash
+    cd services/adk-agent
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Run the development server:**
+    ```bash
+    uvicorn main:app --host 0.0.0.0 --port 8010
+    ```
+
+### Frontend (`nextjs-frontend`)
+
+1.  **Navigate to the frontend directory:**
+    ```bash
+    cd services/nextjs-frontend
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+
+### Toolbox (`toolbox`)
+
+The `toolbox` service can be tested locally using Docker Compose.
+
+1.  **Navigate to the toolbox directory:**
+    ```bash
+    cd services/toolbox(localtesting)
+    ```
+
+2.  **Run the service:**
+    ```bash
+    docker-compose up
+    ```
+    This will start the `toolbox` service, which the `adk-agent` can then connect to for local testing.
+
+## Backend Scripts
+
+The `services/fastapi-backend/scripts/` directory contains several scripts for initializing and seeding the database.
+
+-   **`init.sql`:** This SQL script creates the initial departments in the database. It's a simple way to ensure that the basic department structure is in place when the database is first created.
+
+-   **`seed_departments.py`:** This Python script also creates the initial departments. It's a more robust way to seed the data, as it can be run from the command line and can include more complex logic if needed.
+
+-   **`seed_users.py`:** This script creates a set of users with different roles (e.g., admin, L1 engineer, L2 engineer, end-user) and a defined reporting structure. This is useful for testing the application with a realistic set of users.
+
+-   **`seed_tickets.py`:** This script creates a set of random IT tickets and assigns them to the seeded users. This is useful for populating the database with realistic ticket data for testing and demonstration purposes.
+
+-   **`assign_tickets.py`:** This script assigns all open tickets to L1 and L2 engineers. This is useful for simulating the ticket assignment process.
+
 ## CI/CD Pipeline
 
 The application is deployed using a CI/CD pipeline defined in the `.github/workflows` directory.
 
-- **Staging:** The staging environment is deployed automatically on every push to the `main` branch.
-- **Production:** The production deployment is a manual process that can be triggered from the GitHub Actions UI.
+- **Staging Deployment:** The staging environment is deployed automatically on every push to the `main` branch. The workflow will build and push the container images to Google Artifact Registry and then deploy the services to Google Cloud Run.
+
+- **Production Deployment:** The production deployment is a manual process that can be triggered from the GitHub Actions UI. Once the changes in the staging environment have been verified, you can navigate to the "Actions" tab in the GitHub repository, select the "Deploy to Prod" workflow, and run it. This will deploy the latest version of the `main` branch to the production environment.
 
 ## Service Endpoints
 
